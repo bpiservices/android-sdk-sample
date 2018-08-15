@@ -65,11 +65,9 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
     TextView batteryText;
     boolean documentReaderLicensed;
 
-    PairingService pairingService = new PairingService();
     String vizMrz;
     LeDeviceListAdapter leDeviceListAdapter;
 
-    boolean connected = false;
     boolean activityOnTop = true;
     boolean readingChip = false;
 
@@ -104,9 +102,9 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         leDeviceListAdapter = new LeDeviceListAdapter(MainActivity.this.getLayoutInflater());
         setListAdapter(leDeviceListAdapter);
 
-        // Sets the bluetooth pairing listener
-        pairingService.setListener(MainActivity.this);
         GubaniDevice.getInstance().AddListener(Device.Board, this);
+
+        GubaniDevice.getInstance().PairingService.setListener(MainActivity.this);
 
         mFpReader = GubaniFingerprintReader.getInstance();
         mFpReader.setListener(this);
@@ -151,7 +149,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
      * Called when the user taps the Connect button
      */
     public void connectDevice(View view) {
-        if (connected) {
+        if (GubaniDevice.getInstance().Connected) {
             StopBluetooth();
         } else {
             PairBluetooth();
@@ -250,7 +248,6 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
     public void DevicePaired() {
         scanFingerprintButton.setEnabled(true);
         scanMrzButton.setEnabled(documentReaderLicensed);
-        connected = true;
         monitorStatus();
         connectButton.setText(R.string.button_disconnect);
     }
@@ -262,7 +259,6 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         scanMrzButton.setEnabled(false);
         scanFingerprintButton.setEnabled(false);
 
-        connected = false;
         batteryText.setVisibility(View.GONE);
         connectButton.setText(R.string.button_connect);
     }
@@ -272,8 +268,8 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
      */
     private void PairBluetooth() {
         if (!GubaniDevice.getInstance().Connected) {
-            pairingService.init(this.getApplicationContext());
-            pairingService.startScan(this.getApplicationContext(), 2000);
+            GubaniDevice.getInstance().PairingService.init(this.getApplicationContext());
+            GubaniDevice.getInstance().PairingService.startScan(this.getApplicationContext(), 2000);
         }
     }
 
@@ -283,12 +279,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
     private void StopBluetooth() {
         if (GubaniDevice.getInstance().Connected) {
             showToastInUiThread(this, "Disconnecting...");
-            try {
-                pairingService.stop(this.getApplicationContext());
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
+            GubaniDevice.getInstance().PairingService.stop(this.getApplicationContext());
             DeviceUnPaired();
         }
     }
