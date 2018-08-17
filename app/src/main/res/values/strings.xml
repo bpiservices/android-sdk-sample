@@ -13,5 +13,6 @@
     <string name="unknown_device">Unknown device</string>
     <string name="no_imatch">No iMatch found</string>
     <string name="select_imatch">Select your iMatch</string>
-
+    <string name="strInformation">Information</string>
+    <string name="strInformationMessages">Information messages</string>
 </resources>
