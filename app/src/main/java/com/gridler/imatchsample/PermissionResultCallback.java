@@ -1,4 +1,4 @@
-package com.gridler.imatch;
+package com.gridler.imatchsample;
 
 import java.util.ArrayList;
 

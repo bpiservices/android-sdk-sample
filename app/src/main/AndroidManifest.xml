@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.gridler.imatch">
+    package="com.gridler.imatchsample">
 
     <uses-sdk android:minSdkVersion="26" />
 
@@ -49,11 +49,11 @@
                 android:resource="@xml/device_filter" />
         </activity>
         <activity
-            android:name="com.gridler.imatch.PairingActivity"
+            android:name="com.gridler.imatchsample.PairingActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:label=""
             android:launchMode="singleTop"
-            android:parentActivityName="com.gridler.imatch.MainActivity"
+            android:parentActivityName="com.gridler.imatchsample.MainActivity"
             android:screenOrientation="sensorPortrait"
             android:theme="@style/noAnimTheme" />
     </application>

@@ -1,4 +1,4 @@
-package com.gridler.imatch;
+package com.gridler.imatchsample;
 
 import android.Manifest;
 import android.app.AlertDialog;
@@ -133,7 +133,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             // Notify that the Document Reader license is not valid
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle(R.string.strInformation);
-            builder.setMessage(R.string.strLicenseInvalid);
+            builder.setMessage(R.string.strInvalidDocumentReaderLicense);
             builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {

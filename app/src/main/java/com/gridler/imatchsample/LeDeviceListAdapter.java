@@ -1,4 +1,4 @@
-package com.gridler.imatch;
+package com.gridler.imatchsample;
 
 import android.bluetooth.BluetoothDevice;
 import android.view.LayoutInflater;

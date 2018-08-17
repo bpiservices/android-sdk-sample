@@ -1,4 +1,4 @@
-package com.gridler.imatch;
+package com.gridler.imatchsample;
 
 import android.annotation.SuppressLint;
 import android.app.ListActivity;

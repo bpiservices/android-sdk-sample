@@ -1,4 +1,4 @@
-package com.gridler.imatch;
+package com.gridler.imatchsample;
 
 import android.app.Activity;
 import android.content.Context;
@@ -20,7 +20,7 @@ public class PermissionUtils
 
     private Activity current_activity;
 
-    PermissionResultCallback permissionResultCallback;
+    com.gridler.imatchsample.PermissionResultCallback permissionResultCallback;
     ArrayList<String> permission_list=new ArrayList<>();
     ArrayList<String> listPermissionsNeeded=new ArrayList<>();
     String dialog_content="";
