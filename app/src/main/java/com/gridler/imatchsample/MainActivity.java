@@ -9,7 +9,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ColorSpace;
+import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Bundle;
@@ -17,12 +21,15 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.gridler.gubanilib.GubaniFingerPrintListener;
 import com.gridler.gubanilib.MrtdUtils;
+import com.gridler.gubanisdk.FingerprintImage;
+import com.gridler.gubanisdk.FingerprintTemplate;
 import com.gridler.gubanisdk.GubaniFPEnrollmentParams;
 import com.gridler.gubanisdk.GubaniFPEnrollmentResult;
 import com.gridler.gubanisdk.GubaniFingerprintReader;
@@ -40,13 +47,20 @@ import com.gridler.gubanilib.PairingListener;
 import com.gridler.gubanilib.PairingService;
 import com.gridler.gubanilib.GubaniListener;
 
+import org.jnbis.api.Jnbis;
+import org.jnbis.api.handler.BitmapHandler;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.Console;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StreamCorruptedException;
+import java.nio.ByteBuffer;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -61,10 +75,10 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
     Button scanPassportButton;
     Button scanMrzButton;
     Button scanFingerprintButton;
-    ImageView photo;
+    CheckBox saveWsqCheckbox;
+    ImageView photoImageView;
     TextView batteryText;
     boolean documentReaderLicensed;
-
     String vizMrz;
     LeDeviceListAdapter leDeviceListAdapter;
 
@@ -96,7 +110,8 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         scanPassportButton = findViewById(R.id.scanPassportButton);
         scanMrzButton = findViewById(R.id.scanMrzButton);
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
-        photo = findViewById(R.id.photo);
+        saveWsqCheckbox = findViewById(R.id.saveWsqCheckbox);
+        photoImageView = findViewById(R.id.photo);
 
         // Initializes list view adapter
         leDeviceListAdapter = new LeDeviceListAdapter(MainActivity.this.getLayoutInflater());
@@ -169,6 +184,13 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
      * Called when the user taps the Scan Passport button
      */
     public void scanPassport(View view) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Drawable myDrawable = getResources().getDrawable(R.drawable.face);
+                photoImageView.setImageDrawable(myDrawable);
+            }
+        });
         readMRTD(vizMrz);
     }
 
@@ -180,10 +202,18 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             @Override
             public void run() {
                 try {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint);
+                            photoImageView.setImageDrawable(myDrawable);
+                        }
+                    });
+
                     GubaniFPEnrollmentParams enrollmentParams = new GubaniFPEnrollmentParams();
                     enrollmentParams.configAsynchronousEvent(GubaniFPEnrollmentParams.ASYNC_MSG_FINGER_POSITION | GubaniFPEnrollmentParams.ASYNC_MSG_ENROLLMENT_STEP);
-                    // 0=default (3 recordings), 1 is one recording [0, 1, 3]
-                    enrollmentParams.setEnrollmentType((byte) 1);
+                    enrollmentParams.setConsolidation((byte) 1);
+                    enrollmentParams.setExportTemplate(false);
                     enrollmentParams.setExportImage(ILVConstant.ID_COMPRESSION_WSQ, (byte) 15);
 
                     mFpReader.powerOn();
@@ -206,9 +236,37 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             switch (dataBytes[0]) {
                 case 0x21:  // Enroll result
                     GubaniFPEnrollmentResult enroll_result = new GubaniFPEnrollmentResult(dataBytes);
-                    byte[] fingerprintBytes = Base64.decode(String.valueOf(enroll_result), Base64.NO_WRAP);
-                    Log.d(TAG, fingerprintBytes.toString());
-                    displayLog("Fingerprint data received: " + dataBytes.length);
+                    FingerprintImage fpImageRaw = enroll_result.getFingerprintImage();
+                    byte[] fpImageData = fpImageRaw.getImageData();
+                    displayLog("Fingerprint data received: " + fpImageData.length);
+                    if (saveWsqCheckbox.isChecked()) {
+                        String tempfile = (String) android.text.format.DateFormat.format("yyyyMMddhhmmss", new java.util.Date());
+                        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/iMatchSample/" + tempfile + ".wsq"));
+                        bos.write(fpImageData);
+                        bos.flush();
+                        bos.close();
+                    }
+                    try {
+                        final Bitmap fpImage =  Jnbis.wsq().decode(fpImageData).asBitmap();
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                photoImageView.setImageBitmap(fpImage);
+                            }
+                        });
+                    }
+                    catch (Exception e) {
+                        Log.e(TAG, "WSQ to Bitmap conversion failed. Error: " + e.getMessage());
+                        Log.d(TAG, e.getStackTrace().toString());
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint_fail);
+                                photoImageView.setImageDrawable(myDrawable);
+                            }
+                        });
+                    }
                     break;
 
                 case 0x71:  // Async message
@@ -388,6 +446,10 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
 
     @Override
     public void onResume() {
+        File f = new File(Environment.getExternalStorageDirectory(), "iMatchSample");
+        if (!f.exists()) {
+            f.mkdirs();
+        }
         activityOnTop = true;
         super.onResume();
     }
@@ -616,7 +678,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        photo.setImageBitmap(photoBitmap);
+                        photoImageView.setImageBitmap(photoBitmap);
                     }
                 });
             }
@@ -640,7 +702,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
                         }
                     });
                     try {
-                        sleep(10000);
+                        sleep(30000);
                     } catch (InterruptedException ignored) {
 
                     }
