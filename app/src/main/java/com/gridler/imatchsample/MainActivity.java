@@ -3,14 +3,10 @@ package com.gridler.imatchsample;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.ListActivity;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.ColorSpace;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Environment;
@@ -20,56 +16,53 @@ import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.gridler.gubanilib.GubaniFingerPrintListener;
-import com.gridler.gubanilib.MrtdUtils;
-import com.gridler.gubanisdk.FingerprintImage;
-import com.gridler.gubanisdk.FingerprintTemplate;
-import com.gridler.gubanisdk.GubaniFPEnrollmentParams;
-import com.gridler.gubanisdk.GubaniFPEnrollmentResult;
-import com.gridler.gubanisdk.GubaniFingerprintReader;
-import com.gridler.gubanisdk.Hex;
-import com.gridler.gubanisdk.ILVAsyncMessage;
-import com.gridler.gubanisdk.ILVConstant;
-import com.regula.sdk.CaptureActivity;
-import com.regula.sdk.DocumentReader;
-import com.regula.sdk.results.TextField;
+import com.gridler.imatchlib.ImatchFingerPrintListener;
+import com.gridler.imatchlib.ImatchManagerListener;
+import com.gridler.imatchlib.MrtdUtils;
+import com.gridler.imatchsdk.FingerprintImage;
+import com.gridler.imatchsdk.ImatchFPEnrollmentParams;
+import com.gridler.imatchsdk.ImatchFPEnrollmentResult;
+import com.gridler.imatchsdk.ImatchFingerprintReader;
+import com.gridler.imatchsdk.Hex;
+import com.gridler.imatchsdk.ILVAsyncMessage;
+import com.gridler.imatchsdk.ILVConstant;
+import com.gridler.imatchsdk.ImatchManager;
 
-import com.gridler.gubanilib.Device;
-import com.gridler.gubanilib.GubaniDevice;
-import com.gridler.gubanilib.Method;
-import com.gridler.gubanilib.PairingListener;
-import com.gridler.gubanilib.PairingService;
-import com.gridler.gubanilib.GubaniListener;
+import com.gridler.imatchlib.Device;
+import com.gridler.imatchlib.ImatchDevice;
+import com.gridler.imatchlib.Method;
+import com.gridler.imatchlib.ImatchListener;
+import com.regula.documentreader.api.DocumentReader;
+import com.regula.documentreader.api.enums.DocReaderAction;
+import com.regula.documentreader.api.results.DocumentReaderResults;
+import com.regula.documentreader.api.results.DocumentReaderTextField;
 
 import org.jnbis.api.Jnbis;
-import org.jnbis.api.handler.BitmapHandler;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
-import java.io.Console;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StreamCorruptedException;
-import java.nio.ByteBuffer;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
 
-public class MainActivity extends ListActivity implements PairingListener, GubaniListener, GubaniFingerPrintListener, PermissionResultCallback {
+public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, PermissionResultCallback {
     static String TAG = MainActivity.class.getSimpleName();
-    GubaniFingerprintReader mFpReader;
+    ImatchFingerprintReader mFpReader;
 
     Button connectButton;
     Button scanPassportButton;
@@ -81,20 +74,22 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
     boolean documentReaderLicensed;
     String vizMrz;
     LeDeviceListAdapter leDeviceListAdapter;
+    AlphaAnimation inAnimation;
+    AlphaAnimation outAnimation;
+    FrameLayout progressBarHolder;
 
     boolean activityOnTop = true;
     boolean readingChip = false;
 
-    // list of permissions
-    ArrayList<String> permissions=new ArrayList<>();
-    PermissionUtils permissionUtils;
+    ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        permissionUtils = new PermissionUtils(this);
+        ArrayList<String> permissions=new ArrayList<>();
+        PermissionUtils permissionUtils = new PermissionUtils(this);
 
         //permissions.add(Manifest.permission.READ_PHONE_STATE);
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
@@ -105,6 +100,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         permissions.add(Manifest.permission.CAMERA);
         permissionUtils.check_permission(permissions,"To function correctly this application needs the following permissions",1);
 
+
         batteryText = findViewById(R.id.textBatteryPercentage);
         connectButton = findViewById(R.id.connectButton);
         scanPassportButton = findViewById(R.id.scanPassportButton);
@@ -112,18 +108,48 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
         saveWsqCheckbox = findViewById(R.id.saveWsqCheckbox);
         photoImageView = findViewById(R.id.photo);
+        progressBarHolder = findViewById(R.id.progressBarHolder);
 
         // Initializes list view adapter
         leDeviceListAdapter = new LeDeviceListAdapter(MainActivity.this.getLayoutInflater());
         setListAdapter(leDeviceListAdapter);
 
-        GubaniDevice.getInstance().AddListener(Device.Board, this);
+        ImatchDevice.getInstance().AddListener(Device.Board, this);
 
-        GubaniDevice.getInstance().PairingService.setListener(MainActivity.this);
-
-        mFpReader = GubaniFingerprintReader.getInstance();
+        mFpReader = ImatchFingerprintReader.getInstance();
         mFpReader.setListener(this);
         checkDocumentReaderLicense();
+    }
+
+    @Override
+    public void onResume() {
+        ImatchManager.getInstance().Init(getApplication(), true, this);
+
+        File f = new File(Environment.getExternalStorageDirectory(), "iMatchSample");
+        if (!f.exists()) {
+            f.mkdirs();
+        }
+        activityOnTop = true;
+        super.onResume();
+    }
+
+    @Override
+    public void onPause() {
+        activityOnTop = false;
+        super.onPause();
+    }
+
+    @Override
+    public void onDestroy() {
+        try {
+            ImatchDevice.getInstance().Disconnect();
+        } catch (Exception e) {
+            Log.e(TAG, "Disconnect Service failed! " + e.getLocalizedMessage());
+        }
+
+        super.onDestroy();
+        this.finish();
+        Log.d(TAG, "Application destroyed");
     }
 
     public void checkDocumentReaderLicense() {
@@ -135,28 +161,65 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             try {
                 // Check if the Document Reader has been licensed
                 InputStream licInput = getResources().openRawResource(R.raw.regula);
-                byte[] license = new byte[licInput.available()];
+                final byte[] license = new byte[licInput.available()];
                 licInput.read(license);
-                documentReaderLicensed = DocumentReader.setLibLicense(getApplicationContext(), license);
+
+                // Prepare MRZ database
+                progressDialog = new ProgressDialog(MainActivity.this);
+                progressDialog.setMessage("Downloading Database");
+                progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+                progressDialog.setIndeterminate(false);
+                progressDialog.setMax(100);
+                progressDialog.show();
+
+                //preparing database files, it will be downloaded from network only one time and stored on user device
+                DocumentReader.Instance().prepareDatabase(MainActivity.this, "Full", new
+                        DocumentReader.DocumentReaderPrepareCompletion() {
+                            @Override
+                            public void onPrepareProgressChanged(int progress) {
+                                progressDialog.setProgress(progress);
+                            }
+
+                            @Override
+                            public void onPrepareCompleted(boolean status, String error) {
+                                if(progressDialog.isShowing()) {
+                                    progressDialog.dismiss();
+                                }
+
+                                //Initializing the reader
+                                DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
+                                    @Override
+                                    public void onInitCompleted(boolean success, String error) {
+                                        DocumentReader.Instance().customization.showResultStatusMessages = true;
+                                        DocumentReader.Instance().customization.showStatusMessages = true;
+                                        DocumentReader.Instance().functionality.videoCaptureMotionControl = true;
+
+                                        if (success) {
+                                            DocumentReader.Instance().processParams.scenario = "Mrz";
+                                            DocumentReader.Instance().showScanner(completion);
+                                        }
+                                        else {
+                                            // Notify that the Document Reader license is not valid
+                                            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                                            builder.setTitle(R.string.strError);
+                                            builder.setMessage(R.string.strInvalidDocumentReaderLicense);
+                                            builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
+                                                @Override
+                                                public void onClick(DialogInterface dialog, int which) {
+                                                    dialog.dismiss();
+                                                }
+                                            });
+                                            builder.show();
+                                        }
+                                    }
+                                });
+                            }
+                        });
+
                 licInput.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-
-        if (!documentReaderLicensed) {
-            // Notify that the Document Reader license is not valid
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(R.string.strInformation);
-            builder.setMessage(R.string.strInvalidDocumentReaderLicense);
-            builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            });
-            builder.show();
-            return;
         }
     }
 
@@ -164,7 +227,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
      * Called when the user taps the Connect button
      */
     public void connectDevice(View view) {
-        if (GubaniDevice.getInstance().Connected) {
+        if (ImatchDevice.getInstance().Connected()) {
             StopBluetooth();
         } else {
             PairBluetooth();
@@ -176,8 +239,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
      */
     public void scanMrz(View view) {
         // Launch OCR scanner
-        Intent intent = new Intent(MainActivity.this, CaptureActivity.class);
-        MainActivity.this.startActivityForResult(intent, DocumentReader.READER_REQUEST_CODE);
+        DocumentReader.Instance().showScanner(completion);
     }
 
     /**
@@ -187,8 +249,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Drawable myDrawable = getResources().getDrawable(R.drawable.face);
-                photoImageView.setImageDrawable(myDrawable);
+                photoImageView.setImageDrawable(null);
             }
         });
         readMRTD(vizMrz);
@@ -210,8 +271,8 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
                         }
                     });
 
-                    GubaniFPEnrollmentParams enrollmentParams = new GubaniFPEnrollmentParams();
-                    enrollmentParams.configAsynchronousEvent(GubaniFPEnrollmentParams.ASYNC_MSG_FINGER_POSITION | GubaniFPEnrollmentParams.ASYNC_MSG_ENROLLMENT_STEP);
+                    ImatchFPEnrollmentParams enrollmentParams = new ImatchFPEnrollmentParams();
+                    enrollmentParams.configAsynchronousEvent(ImatchFPEnrollmentParams.ASYNC_MSG_FINGER_POSITION | ImatchFPEnrollmentParams.ASYNC_MSG_ENROLLMENT_STEP);
                     enrollmentParams.setConsolidation((byte) 1);
                     enrollmentParams.setExportTemplate(false);
                     enrollmentParams.setExportImage(ILVConstant.ID_COMPRESSION_WSQ, (byte) 15);
@@ -235,7 +296,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
             switch (dataBytes[0]) {
                 case 0x21:  // Enroll result
-                    GubaniFPEnrollmentResult enroll_result = new GubaniFPEnrollmentResult(dataBytes);
+                    ImatchFPEnrollmentResult enroll_result = new ImatchFPEnrollmentResult(dataBytes);
                     FingerprintImage fpImageRaw = enroll_result.getFingerprintImage();
                     byte[] fpImageData = fpImageRaw.getImageData();
                     displayLog("Fingerprint data received: " + fpImageData.length);
@@ -304,6 +365,12 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
      * Called when an iMatch device is paired
      */
     public void DevicePaired() {
+        outAnimation = new AlphaAnimation(1f, 0f);
+        outAnimation.setDuration(200);
+        progressBarHolder.setAnimation(outAnimation);
+        progressBarHolder.setVisibility(View.GONE);
+        connectButton.setEnabled(true);
+        showToastInUiThread(this, "Connected to " + ImatchDevice.getInstance().GetName());
         scanFingerprintButton.setEnabled(true);
         scanMrzButton.setEnabled(documentReaderLicensed);
         monitorStatus();
@@ -321,83 +388,70 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         connectButton.setText(R.string.button_connect);
     }
 
-    /**
-     * Initializes the pairing service and starts scanning for devices
-     */
     private void PairBluetooth() {
-        if (!GubaniDevice.getInstance().Connected) {
-            GubaniDevice.getInstance().PairingService.init(this.getApplicationContext());
-            GubaniDevice.getInstance().PairingService.startScan(this.getApplicationContext(), 2000);
+        if (!ImatchDevice.getInstance().Connected()) {
+            ImatchManager.getInstance().Scan(2000);
         }
     }
 
-    /**
-     * Stops the pairing service
-     */
     private void StopBluetooth() {
-        if (GubaniDevice.getInstance().Connected) {
+        if (ImatchDevice.getInstance().Connected()) {
             showToastInUiThread(this, "Disconnecting...");
-            GubaniDevice.getInstance().PairingService.stop(this.getApplicationContext());
+            ImatchDevice.getInstance().Disconnect();
             DeviceUnPaired();
         }
     }
 
-    /**
-     * Called when a device is added
-     */
-    @Override
-    public void addDevice(BluetoothDevice dev) {
-        final BluetoothDevice _dev = dev;
-        Log.d(TAG, "Device added: " + _dev.getName());
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                leDeviceListAdapter.addDevice(_dev);
-                leDeviceListAdapter.notifyDataSetInvalidated();
-            }
-        });
-    }
-
-    @Override
-    public void startActivityForResult() {
-        Log.d(TAG, "startActivityForResult!");
-        this.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), 1);
-    }
-
-    /**
-     * Called when a device has been discovered and can be paired
-     */
-    @Override
-    public void pairDeviceSelector() {
-        if (leDeviceListAdapter.isEmpty()) {
-            showToastInUiThread(this, getResources().getString(R.string.no_imatch));
-            return;
-        }
-
-        GubaniDevice.getInstance().DeviceName = leDeviceListAdapter.getDevice(0).getName();
-        GubaniDevice.getInstance().DeviceAddress = leDeviceListAdapter.getDevice(0).getAddress();
-        if (leDeviceListAdapter.getCount() > 0) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(getResources().getString(R.string.select_imatch)).setItems(leDeviceListAdapter.getDeviceNames(), new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int which) {
-                    GubaniDevice.getInstance().DeviceName = leDeviceListAdapter.getDevice(which).getName();
-                    GubaniDevice.getInstance().DeviceAddress = leDeviceListAdapter.getDevice(which).getAddress();
-                    Pair();
-                }
-            });
-            builder.show();
-        }
-    }
-
-    private void Pair() {
-        if (GubaniDevice.getInstance().DeviceName != null && GubaniDevice.getInstance().DeviceAddress != null) {
-            GubaniDevice.getInstance().Init(this, GubaniDevice.getInstance().DeviceName, GubaniDevice.getInstance().DeviceAddress);
+    private void Pair(String imatchBleName) {
+        if (!ImatchDevice.getInstance().Connected()) {
+            connectButton.setEnabled(false);
+            inAnimation = new AlphaAnimation(0f, 1f);
+            inAnimation.setDuration(200);
+            progressBarHolder.setAnimation(inAnimation);
+            progressBarHolder.setVisibility(View.VISIBLE);
+            ImatchDevice.getInstance().Connect(imatchBleName);
         }
     }
 
     @Override
     public void onReceiveEvent(Method method, String data) {
         Log.d(TAG, "received event: " + data);
+        if (method == Method.DATETIME && data.equals("1")) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    DevicePaired();
+                }
+            });
+        }
+        if (method == Method.RESET && data.equals("1")) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    DevicePaired();
+                }
+            });
+        }
+        if (method == Method.STATUS) {
+            try {
+                JSONObject jObject = new JSONObject(data);
+                final double cv = (int) jObject.getDouble("cv");
+                final boolean cs = Boolean.valueOf(jObject.getString("cs"));
+                final double cl = jObject.getDouble("cl");
+                Log.d(TAG, "CV: " + cv + " CS: " + cs + " CL: " + cl);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        batteryText.setVisibility(View.VISIBLE);
+                        batteryText.setText(cv + " %");
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -411,28 +465,9 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
     @Override
     public void onConnectionChange(Boolean connected) {
         Log.d(TAG, "onConnectionChange: " + connected);
-        if (GubaniDevice.getInstance().Connected) {
-            String name = GubaniDevice.getInstance().DeviceName;
-            if (!name.contains("-") && GubaniDevice.getInstance().DeviceAddress != null && GubaniDevice.getInstance().DeviceAddress.length() > 0) {
-                String devId = GubaniDevice.getInstance().DeviceAddress.replace(":", "");
-                if (devId.length() == 12) {
-                    name += "-" + devId.substring(8);
-                }
-            }
-
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    DevicePaired();
-                    try {
-                        GubaniDevice.getInstance().Send(Device.Board, Method.RESET, "");
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-            showToastInUiThread(this, "Connected to " + name);
-
+        if (ImatchDevice.getInstance().Connected()) {
+            Log.i(TAG, "Connected to " + ImatchDevice.getInstance().GetName() + " MAC: " + ImatchDevice.getInstance().GetMac());
+            ImatchDevice.getInstance().SyncDate();
         } else {
             runOnUiThread(new Runnable() {
                 @Override
@@ -444,82 +479,85 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         }
     }
 
+
     @Override
-    public void onResume() {
-        File f = new File(Environment.getExternalStorageDirectory(), "iMatchSample");
-        if (!f.exists()) {
-            f.mkdirs();
-        }
-        activityOnTop = true;
-        super.onResume();
+    public void onInitSuccess() {
+        Log.i(TAG, "onInitSuccess");
     }
 
     @Override
-    public void onPause() {
-        activityOnTop = false;
-        super.onPause();
+    public void onError(int code, String message) {
+        Log.e(TAG, "iMatch Error received. Code: " + code + " Message: " + message);
+        ImatchDevice.getInstance().Reset();
     }
 
-    public void onDestroy() {
-        try {
-            GubaniDevice.getInstance().Disconnect(this);
-        } catch (Exception e) {
-            Log.e(TAG, "Disconnect Service failed! " + e.getLocalizedMessage());
-        }
+    @Override
+    public void onScanResult(final Map<String, String> scanResult) {
+        final Context ctx = this;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                for(Map.Entry<String, String> entry: scanResult.entrySet()) {
+                    String name = entry.getKey();
 
-        super.onDestroy();
-        this.finish();
-        Log.d(TAG, "Application destroyed");
+                    leDeviceListAdapter.addDevice(entry.getKey());
+                    leDeviceListAdapter.notifyDataSetInvalidated();
+                }
+
+                if (leDeviceListAdapter.isEmpty()) {
+                    showToastInUiThread(ctx, getResources().getString(R.string.no_imatch));
+                    return;
+                }
+
+                if (leDeviceListAdapter.getCount() > 0) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(ctx);
+                    builder.setTitle(getResources().getString(R.string.select_imatch)).setItems(leDeviceListAdapter.getDeviceNames(), new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            Pair(leDeviceListAdapter.getDeviceNames()[which]);
+                        }
+                    });
+                    builder.show();
+                }
+            }
+        });
     }
 
     /**
      * Called when the Document Reader decodes a MRZ code
      */
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+    private DocumentReader.DocumentReaderCompletion completion = new DocumentReader.DocumentReaderCompletion() {
+        @Override
+        public void onCompleted(int action, DocumentReaderResults results, String error) {
+            if (action == DocReaderAction.COMPLETE) {
+                if (results!=null)
+                {
+                    if(results.textResult != null && results.textResult.fields != null) {
+                        for (DocumentReaderTextField textField : results.textResult.fields) {
+                            String value = results.getTextFieldValueByType(textField.fieldType, textField.lcid);
+                            switch (textField.fieldType)
+                            {
+                                case 172:
+                                case 51:
+                                    vizMrz = value;
+                                    scanPassportButton.setEnabled(true);
+                                    break;
+                            }
 
-        if (resultCode == RESULT_OK) {
-            if (requestCode == DocumentReader.READER_REQUEST_CODE) {
-                List<TextField> mResultItems = new ArrayList<>();
-                mResultItems.addAll(DocumentReader.getAllTextFields());
-                for (int i = 0; i < mResultItems.size(); i++) {
-                    TextField tf = mResultItems.get(i);
-                    Log.i(TAG, "MRZ FIELD: " + tf.fieldType + " --> " + tf.bufText);
-                    switch (tf.fieldType) {
-                        case 0: // DocType
-                            break;
-                        case 1: // Nationality
-                            break;
-                        case 2: // DocNumber
-                            break;
-                        case 3: // ExpiryDate
-                            break;
-                        case 5:// BirthDate
-                            break;
-                        case 7: // PersonalNumber
-                            break;
-                        case 8: // LastName;
-                            break;
-                        case 9: // FirstName
-                            break;
-                        case 12: // Gender
-                            break;
-                        case 26: // Country
-                            break;
-                        case 172: // MRZ
-                            vizMrz = tf.bufText;
-                            scanPassportButton.setEnabled(true);
-                            break;
-                        case 51: // MRZ
-                            vizMrz = tf.bufText;
-                            scanPassportButton.setEnabled(true);
-                            break;
+                            Log.d("MainActivity", value + "\n");
+                        }
                     }
+                }
+            } else {
+                if(action==DocReaderAction.CANCEL){
+                    Log.e(TAG, "DocReaderAction.CANCEL");
+                    Toast.makeText(MainActivity.this, "Scanning cancelled",Toast.LENGTH_LONG).show();
+                } else if(action == DocReaderAction.ERROR){
+                    Log.e(TAG, "DocReaderAction.ERROR: " + error);
+                    Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show();
                 }
             }
         }
-    }
+    };
 
     /**
      * Builds the BAC from the MRZ and starts a task to read the passport
@@ -530,7 +568,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             String mrz2 = "";
             String bacMrz = "";
             Integer counter = 0;
-            String[] parts = vizMrz.split("\\^", -1);
+            String[] parts = vizMrz.split("\\r?\\n", -1);
             for (String item : parts) {
                 if (counter == 0) {
                     mrz1 = item;
@@ -544,6 +582,7 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
             }
             if (counter == 3) bacMrz = mrz1 + mrz2;
             else if (counter == 2) bacMrz = mrz2;
+            if ("".equals(bacMrz)) bacMrz = vizMrz;
             new ReadMRTDTask(this, bacMrz).execute();
         } catch (Exception ex) {
             Log.e(TAG, ex.getMessage());
@@ -571,67 +610,70 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
                 start = System.currentTimeMillis();
 
                 // Initialize the passport read process on the iMatch
-                String bacResult = GubaniDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, this.bacMrz);
-                if (bacResult.equals("1")) {
-                    displayLog(String.format("Performed ICAO BAC. %1$dms", System.currentTimeMillis() - mark));
-                    mark = System.currentTimeMillis();
-                    publishProgress();
-
-                    // Read DG2 (passport photo)
-                    String dg2Result = GubaniDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG2");
-                    Log.d(TAG, "DG2 Result: " + dg2Result);
-                    byte[] photoBytes = Base64.decode(dg2Result, Base64.NO_WRAP);
-
-                    String hex = Hex.encodeHex(photoBytes, true);
-                    String start = "FFD8FF";
-                    int startindex = 80;
-
-                    String photoMimeType;
-                    if (hex.contains("FFD8FF")) {
-                        startindex = (hex.indexOf(start)) / 2;
-                        photoMimeType = "image/jpeg";
-                    } else
-                        photoMimeType = "image/jp2";
-
-                    Log.d(TAG, "mime: photoMimeType: " + photoMimeType);
-                    displayLog(String.format("Read DG2. %1$dms", System.currentTimeMillis() - mark));
-                    mark = System.currentTimeMillis();
-                    publishProgress();
-                    new DecodeImageTask(Arrays.copyOfRange(photoBytes, startindex, photoBytes.length), photoMimeType).execute();
-
-                    try {
-                        // Read SOD (document security object)
-                        final byte[] certBytes = Base64.decode(GubaniDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "SOD"), Base64.NO_WRAP);
-                        displayLog(String.format("Read SecurityData. %1$dms", System.currentTimeMillis() - mark));
-                        mark = System.currentTimeMillis();
-                        publishProgress();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-                                    InputStream in = new ByteArrayInputStream(certBytes);
-                                    X509Certificate cert = (X509Certificate) certFactory.generateCertificate(in);
-                                    displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
-                                } catch (Exception ecert) {
-                                    Log.e(TAG, "cert: " + ecert.getMessage());
-                                    ecert.printStackTrace();
-                                }
-                            }
-                        });
-                    } catch (Exception e) {
-                        Log.e(TAG, e.getLocalizedMessage());
-                        e.printStackTrace();
-                    }
-
-                    // Read DG1
-                    String dg1Mrz = GubaniDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG1");
-                    displayLog(String.format("Read DG1. %1$dms", System.currentTimeMillis() - mark));
-                    mark = System.currentTimeMillis();
-                    publishProgress();
-
-                    readingChip = false;
+                String bacResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, this.bacMrz);
+                if (!bacResult.equals("1")) {
+                    displayLog(String.format("BAC failed. %1$dms", System.currentTimeMillis() - mark));
+                    throw new Exception("BAC failed");
                 }
+
+                displayLog(String.format("Performed ICAO BAC. %1$dms", System.currentTimeMillis() - mark));
+                mark = System.currentTimeMillis();
+                publishProgress();
+
+                // Read DG2 (passport photo)
+                String dg2Result = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG2");
+                Log.d(TAG, "DG2 Result: " + dg2Result);
+                byte[] photoBytes = Base64.decode(dg2Result, Base64.NO_WRAP);
+
+                String hex = Hex.encodeHex(photoBytes, true);
+                String start = "FFD8FF";
+                int startindex = 80;
+
+                String photoMimeType;
+                if (hex.contains("FFD8FF")) {
+                    startindex = (hex.indexOf(start)) / 2;
+                    photoMimeType = "image/jpeg";
+                } else
+                    photoMimeType = "image/jp2";
+
+                Log.d(TAG, "mime: photoMimeType: " + photoMimeType);
+                displayLog(String.format("Read DG2. %1$dms", System.currentTimeMillis() - mark));
+                mark = System.currentTimeMillis();
+                publishProgress();
+                new DecodeImageTask(Arrays.copyOfRange(photoBytes, startindex, photoBytes.length), photoMimeType).execute();
+
+                try {
+                    // Read SOD (document security object)
+                    final byte[] certBytes = Base64.decode(ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "SOD"), Base64.NO_WRAP);
+                    displayLog(String.format("Read SecurityData. %1$dms", System.currentTimeMillis() - mark));
+                    mark = System.currentTimeMillis();
+                    publishProgress();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+                                InputStream in = new ByteArrayInputStream(certBytes);
+                                X509Certificate cert = (X509Certificate) certFactory.generateCertificate(in);
+                                displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
+                            } catch (Exception ecert) {
+                                Log.e(TAG, "cert: " + ecert.getMessage());
+                                ecert.printStackTrace();
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e(TAG, e.getLocalizedMessage());
+                    e.printStackTrace();
+                }
+
+                // Read DG1
+                String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG1");
+                displayLog(String.format("Read DG1. %1$dms", System.currentTimeMillis() - mark));
+                mark = System.currentTimeMillis();
+                publishProgress();
+
+                readingChip = false;
                 return null;
             } catch (Exception e) {
                 return e;
@@ -692,47 +734,15 @@ public class MainActivity extends ListActivity implements PairingListener, Guban
         Thread task = new Thread() {
             @Override
             public void run() {
-                while (GubaniDevice.getInstance().Connected && activityOnTop && !readingChip) {
-                    final double cv = getStatusInfo();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            batteryText.setVisibility(View.VISIBLE);
-                            batteryText.setText(cv + " %");
-                        }
-                    });
+                while (ImatchDevice.getInstance().Connected() && activityOnTop && !readingChip) {
+                    ImatchDevice.getInstance().RequestStatus();
                     try {
                         sleep(30000);
-                    } catch (InterruptedException ignored) {
-
-                    }
+                    } catch (InterruptedException ignored) {}
                 }
             }
         };
-
         task.start();
-    }
-
-    /**
-     * Gets the status of the connected iMatch (battery level, etc.)
-     */
-    public static double getStatusInfo() {
-
-        try {
-            String GaugeResult = GubaniDevice.getInstance().SendWithResponse(Device.Board, Method.STATUS, "data");
-            Log.d(TAG, "sendWithResponse: data: " + GaugeResult);
-            JSONObject jObject = new JSONObject(GaugeResult);
-            double cv = (int) jObject.getDouble("cv");
-            boolean cs = Boolean.valueOf(jObject.getString("cs"));
-            double cl = jObject.getDouble("cl");
-            Log.d(TAG, "CV: " + cv + " CS: " + cs + " CL: " + cl);
-
-            return cv;
-        } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
-        }
-
-        return 0;
     }
 
     private void displayLog(final String message) {
