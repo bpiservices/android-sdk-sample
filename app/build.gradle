@@ -17,7 +17,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    buildToolsVersion '27.0.3'
+    buildToolsVersion '28.0.3'
+}
+
+repositories {
+    jcenter()
+    google()
+    maven {
+        url "http://maven.regulaforensics.com/RegulaDocumentReader"
+    }
 }
 
 dependencies {
@@ -27,7 +35,11 @@ dependencies {
     implementation 'com.android.support:design:27.1.1'
     implementation 'com.android.support:support-v4:27.1.1'
     implementation 'com.android.support:support-vector-drawable:27.1.1'
-    implementation project(':DocumentReader')
+    implementation 'com.regula.documentreader.full:core:+@aar'
+    implementation 'com.clj.fastble:FastBleLib:2.3.2'
+    implementation('com.regula.documentreader:api:+@aar') {
+        transitive = true
+    }
     implementation project(':imatchsdk')
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
