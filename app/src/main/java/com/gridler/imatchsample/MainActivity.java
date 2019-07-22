@@ -166,55 +166,43 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 // Prepare MRZ database
                 progressDialog = new ProgressDialog(MainActivity.this);
-                progressDialog.setMessage("Downloading Database");
-                progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-                progressDialog.setIndeterminate(false);
-                progressDialog.setMax(100);
+                progressDialog.setMessage("Initializing Document Reader");
+                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+                progressDialog.setIndeterminate(true);
                 progressDialog.show();
 
-                //preparing database files, it will be downloaded from network only one time and stored on user device
-                DocumentReader.Instance().prepareDatabase(MainActivity.this, "Full", new
-                        DocumentReader.DocumentReaderPrepareCompletion() {
-                            @Override
-                            public void onPrepareProgressChanged(int progress) {
-                                progressDialog.setProgress(progress);
-                            }
+                //Initializing the reader
+                DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
+                    @Override
+                    public void onInitCompleted(boolean success, String error) {
+                        DocumentReader.Instance().customization.showResultStatusMessages = true;
+                        DocumentReader.Instance().customization.showStatusMessages = true;
+                        DocumentReader.Instance().functionality.videoCaptureMotionControl = true;
 
-                            @Override
-                            public void onPrepareCompleted(boolean status, String error) {
-                                if(progressDialog.isShowing()) {
-                                    progressDialog.dismiss();
+                        documentReaderLicensed = success;
+
+                        if(progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
+
+                        if (documentReaderLicensed) {
+                            DocumentReader.Instance().processParams.scenario = "Mrz";
+                        }
+                        else {
+                            // Notify that the Document Reader license is not valid
+                            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                            builder.setTitle(R.string.strInformation);
+                            builder.setMessage(R.string.strInvalidDocumentReaderLicense);
+                            builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    dialog.dismiss();
                                 }
-
-                                //Initializing the reader
-                                DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
-                                    @Override
-                                    public void onInitCompleted(boolean success, String error) {
-                                        DocumentReader.Instance().customization.showResultStatusMessages = true;
-                                        DocumentReader.Instance().customization.showStatusMessages = true;
-                                        DocumentReader.Instance().functionality.videoCaptureMotionControl = true;
-
-                                        if (success) {
-                                            DocumentReader.Instance().processParams.scenario = "Mrz";
-                                            DocumentReader.Instance().showScanner(completion);
-                                        }
-                                        else {
-                                            // Notify that the Document Reader license is not valid
-                                            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                                            builder.setTitle(R.string.strError);
-                                            builder.setMessage(R.string.strInvalidDocumentReaderLicense);
-                                            builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
-                                                @Override
-                                                public void onClick(DialogInterface dialog, int which) {
-                                                    dialog.dismiss();
-                                                }
-                                            });
-                                            builder.show();
-                                        }
-                                    }
-                                });
-                            }
-                        });
+                            });
+                            builder.show();
+                        }
+                    }
+                });
 
                 licInput.close();
             } catch (IOException e) {
@@ -295,7 +283,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         try {
             byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
             switch (dataBytes[0]) {
-                case 0x21:  // Enroll result
+                case ILVConstant.ILV_ENROLL:  // Enroll result
                     ImatchFPEnrollmentResult enroll_result = new ImatchFPEnrollmentResult(dataBytes);
                     FingerprintImage fpImageRaw = enroll_result.getFingerprintImage();
                     byte[] fpImageData = fpImageRaw.getImageData();
@@ -330,7 +318,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     }
                     break;
 
-                case 0x71:  // Async message
+                case ILVConstant.ILV_ASYNC_MESSAGE:  // Async message
                     ILVAsyncMessage msg = null;
                     msg = new ILVAsyncMessage(dataBytes);
                     if (msg.getCommandType() == ILVAsyncMessage.MORPHO_CALLBACK_COMMAND_CMD) {
