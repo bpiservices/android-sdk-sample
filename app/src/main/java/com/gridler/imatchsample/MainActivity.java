@@ -27,6 +27,7 @@ import android.widget.Toast;
 import com.gridler.imatchlib.ImatchFingerPrintListener;
 import com.gridler.imatchlib.ImatchManagerListener;
 import com.gridler.imatchlib.MrtdUtils;
+import com.gridler.imatchlib.Utils;
 import com.gridler.imatchsdk.FingerprintImage;
 import com.gridler.imatchsdk.ImatchFPEnrollmentParams;
 import com.gridler.imatchsdk.ImatchFPEnrollmentResult;
@@ -54,7 +55,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -598,7 +598,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 start = System.currentTimeMillis();
 
                 // Initialize the passport read process on the iMatch
-                String bacResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, this.bacMrz);
+                String bypassPACE = "0";
+                String checkMAC = "1";
+                String includeHeaders = "1";
+                String apduLogging = "0";
+                String params = bacMrz + "," + bypassPACE + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                String bacResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, params);
                 if (!bacResult.equals("1")) {
                     displayLog(String.format("BAC failed. %1$dms", System.currentTimeMillis() - mark));
                     throw new Exception("BAC failed");
@@ -611,13 +616,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 // Read DG2 (passport photo)
                 String dg2Result = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG2");
                 Log.d(TAG, "DG2 Result: " + dg2Result);
-                byte[] photoBytes = Base64.decode(dg2Result, Base64.NO_WRAP);
+                byte[] dg2Bytes = Base64.decode(dg2Result, Base64.NO_WRAP);
 
-                String hex = Hex.encodeHex(photoBytes, true);
+                String hex = Hex.encodeHex(dg2Bytes, true);
                 String start = "FFD8FF";
                 int startindex = 80;
 
-                String photoMimeType;
+                final String photoMimeType;
                 if (hex.contains("FFD8FF")) {
                     startindex = (hex.indexOf(start)) / 2;
                     photoMimeType = "image/jpeg";
@@ -628,7 +633,15 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 displayLog(String.format("Read DG2. %1$dms", System.currentTimeMillis() - mark));
                 mark = System.currentTimeMillis();
                 publishProgress();
-                new DecodeImageTask(Arrays.copyOfRange(photoBytes, startindex, photoBytes.length), photoMimeType).execute();
+
+                final byte[] photoBytes = Arrays.copyOfRange(dg2Bytes, startindex, dg2Bytes.length);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        new DecodeImageTask(photoBytes, photoMimeType).execute();
+                    }
+                });
 
                 try {
                     // Read SOD (document security object)
@@ -640,9 +653,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         @Override
                         public void run() {
                             try {
-                                CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-                                InputStream in = new ByteArrayInputStream(certBytes);
-                                X509Certificate cert = (X509Certificate) certFactory.generateCertificate(in);
+                                X509Certificate cert = Utils.getDocSigningCertificate(certBytes);
                                 displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
                             } catch (Exception ecert) {
                                 Log.e(TAG, "cert: " + ecert.getMessage());
