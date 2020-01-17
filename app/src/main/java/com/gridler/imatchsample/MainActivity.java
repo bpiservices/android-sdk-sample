@@ -637,12 +637,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 final byte[] photoBytes = Arrays.copyOfRange(dg2Bytes, startindex, dg2Bytes.length);
 
-                /*runOnUiThread(new Runnable() {
+                runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         new DecodeImageTask(photoBytes, photoMimeType).execute();
                     }
-                });*/
+                });
 
                 try {
                     // Read SOD (document security object)
