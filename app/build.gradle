@@ -35,8 +35,8 @@ dependencies {
     implementation 'com.android.support:design:27.1.1'
     implementation 'com.android.support:support-v4:27.1.1'
     implementation 'com.android.support:support-vector-drawable:27.1.1'
-    implementation 'com.regula.documentreader.full:core:+@aar'
     implementation 'com.clj.fastble:FastBleLib:2.3.2'
+    implementation 'com.regula.documentreader.mrz:core:+@aar'
     implementation('com.regula.documentreader:api:+@aar') {
         transitive = true
     }

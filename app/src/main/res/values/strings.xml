@@ -16,5 +16,5 @@
     <string name="select_imatch">Select your iMatch</string>
     <string name="strInformation">Information</string>
     <string name="strInformationMessages">Information messages</string>
-    <string name="strInvalidDocumentReaderLicense">DocumentReader license not found. MRZ / Passport functions will be disabled.</string>
+    <string name="strInvalidDocumentReaderLicense">DocumentReader license not found. MRZ / Passport functions will be disabled</string>
 </resources>

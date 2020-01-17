@@ -165,7 +165,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 licInput.read(license);
 
                 // Prepare MRZ database
-                /*progressDialog = new ProgressDialog(MainActivity.this);
+                progressDialog = new ProgressDialog(MainActivity.this);
                 progressDialog.setMessage("Initializing Document Reader");
                 progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
                 progressDialog.setIndeterminate(true);
@@ -175,9 +175,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
                     @Override
                     public void onInitCompleted(boolean success, String error) {
-                        DocumentReader.Instance().customization.showResultStatusMessages = true;
-                        DocumentReader.Instance().customization.showStatusMessages = true;
-                        DocumentReader.Instance().functionality.videoCaptureMotionControl = true;
+                        DocumentReader.Instance().customization().setShowResultStatusMessages(true);
+                        DocumentReader.Instance().customization().setShowStatusMessages(true);
+                        DocumentReader.Instance().functionality().setVideoCaptureMotionControl(true);
 
                         documentReaderLicensed = success;
 
@@ -186,13 +186,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         }
 
                         if (documentReaderLicensed) {
-                            DocumentReader.Instance().processParams.scenario = "Mrz";
+                            DocumentReader.Instance().processParams().scenario = "Mrz";
                         }
                         else {
                             // Notify that the Document Reader license is not valid
                             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                             builder.setTitle(R.string.strInformation);
-                            builder.setMessage(R.string.strInvalidDocumentReaderLicense);
+                            builder.setMessage(R.string.strInvalidDocumentReaderLicense + ": " + error);
                             builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
@@ -203,7 +203,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         }
                     }
                 });
-                 */
+
 
                 licInput.close();
             } catch (IOException e) {
@@ -637,12 +637,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 final byte[] photoBytes = Arrays.copyOfRange(dg2Bytes, startindex, dg2Bytes.length);
 
-                runOnUiThread(new Runnable() {
+                /*runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         new DecodeImageTask(photoBytes, photoMimeType).execute();
                     }
-                });
+                });*/
 
                 try {
                     // Read SOD (document security object)
