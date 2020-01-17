@@ -26,6 +26,7 @@ import android.widget.Toast;
 
 import com.gridler.imatchlib.ImatchFingerPrintListener;
 import com.gridler.imatchlib.ImatchManagerListener;
+import com.gridler.imatchlib.ImatchSmartCardListener;
 import com.gridler.imatchlib.MrtdUtils;
 import com.gridler.imatchlib.Utils;
 import com.gridler.imatchsdk.FingerprintImage;
@@ -41,12 +42,14 @@ import com.gridler.imatchlib.Device;
 import com.gridler.imatchlib.ImatchDevice;
 import com.gridler.imatchlib.Method;
 import com.gridler.imatchlib.ImatchListener;
+import com.gridler.imatchsdk.ImatchSmartcardReader;
 import com.regula.documentreader.api.DocumentReader;
 import com.regula.documentreader.api.enums.DocReaderAction;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
 import org.jnbis.api.Jnbis;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedOutputStream;
@@ -60,14 +63,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
-public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, PermissionResultCallback {
+public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback {
     static String TAG = MainActivity.class.getSimpleName();
     ImatchFingerprintReader mFpReader;
+    ImatchSmartcardReader mScReader;
 
     Button connectButton;
     Button scanPassportButton;
     Button scanMrzButton;
     Button scanFingerprintButton;
+    Button scanSmartCardButton;
     CheckBox saveWsqCheckbox;
     ImageView photoImageView;
     TextView batteryText;
@@ -106,6 +111,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         scanPassportButton = findViewById(R.id.scanPassportButton);
         scanMrzButton = findViewById(R.id.scanMrzButton);
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
+        scanSmartCardButton = findViewById(R.id.scanSmartCardButton);
         saveWsqCheckbox = findViewById(R.id.saveWsqCheckbox);
         photoImageView = findViewById(R.id.photo);
         progressBarHolder = findViewById(R.id.progressBarHolder);
@@ -115,6 +121,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         setListAdapter(leDeviceListAdapter);
 
         ImatchDevice.getInstance().AddListener(Device.Board, this);
+        ImatchSmartcardReader.getInstance().setListener(this);
 
         mFpReader = ImatchFingerprintReader.getInstance();
         mFpReader.setListener(this);
@@ -142,6 +149,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     @Override
     public void onDestroy() {
         try {
+            ImatchSmartcardReader.getInstance().removeListeners();
             ImatchDevice.getInstance().Disconnect();
         } catch (Exception e) {
             Log.e(TAG, "Disconnect Service failed! " + e.getLocalizedMessage());
@@ -245,7 +253,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     }
 
     /**
-     * Called when the user taps the Scan Passport button
+     * Called when the user taps the Scan Fingerprint button
      */
     public void scanFingerprint(View view) {
         AsyncTask.execute(new Runnable() {
@@ -274,6 +282,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 }
             }
         });
+    }
+
+    /**
+     * Called when the user taps the Scan Smart Card button
+     */
+    public void scanSmartCard(View view) {
+        powerOnSCR();
     }
 
     /**
@@ -350,6 +365,58 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         displayLog(message);
     }
 
+    public void powerOnSCR() {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    boolean result = mScReader.getInstance().powerReaderOn("readKnownATRs");
+                    if (result) {
+                        Log.d(TAG,"powerOnSCR(): " +  result);
+                    }
+                    else {
+                        Thread.sleep(1000);
+                        powerOnSCR();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "powerOnSCR(): " + e.getLocalizedMessage());
+                }
+            }
+        });
+    }
+
+    public void powerOffSCR() {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    boolean result = mScReader.getInstance().powerReaderOff();
+                    if (result) {
+                        Log.d(TAG,"powerOffSCR(): " +  result);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "powerOffSCR(): " + e.getLocalizedMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * Called when a smart card event is received
+     */
+    @Override
+    public void onSmartCardEvent(Method method, final String data) {
+        Log.d(TAG, "onSmartCardEvent():" + method + ": " + data);
+        displayLog(data);
+        powerOffSCR();
+    }
+
+    @Override
+    public void onSmartCardError(int code, String message) {
+        Log.e(TAG, "Smart card Error: " + message);
+        displayLog(message);
+    }
+
     /**
      * Called when an iMatch device is paired
      */
@@ -361,6 +428,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         connectButton.setEnabled(true);
         showToastInUiThread(this, "Connected to " + ImatchDevice.getInstance().GetName());
         scanFingerprintButton.setEnabled(true);
+        scanSmartCardButton.setEnabled(true);
         scanMrzButton.setEnabled(documentReaderLicensed);
         monitorStatus();
         connectButton.setText(R.string.button_disconnect);
@@ -372,6 +440,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     public void DeviceUnPaired() {
         scanMrzButton.setEnabled(false);
         scanFingerprintButton.setEnabled(false);
+        scanSmartCardButton.setEnabled(false);
 
         batteryText.setVisibility(View.GONE);
         connectButton.setText(R.string.button_connect);

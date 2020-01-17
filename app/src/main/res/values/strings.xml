@@ -7,12 +7,14 @@
     <string name="button_scan_mrz">Scan MRZ</string>
     <string name="button_scan_passport">Scan Passport</string>
     <string name="button_scan_fingerprint">Scan Fingerprint</string>
+    <string name="button_scan_smart_card">Scan Smart Card</string>
     <string name="checkbox_save_wsq">Save WSQ image to file</string>
     <string name="activity_title_pairing_activity">Connect</string>
     <string name="menu_scan">Scan</string>
     <string name="menu_stop">Stop</string>
     <string name="unknown_device">Unknown device</string>
     <string name="no_imatch">No iMatch found</string>
+    <string name="invalid_card">Invalid Card</string>
     <string name="select_imatch">Select your iMatch</string>
     <string name="strInformation">Information</string>
     <string name="strInformationMessages">Information messages</string>
