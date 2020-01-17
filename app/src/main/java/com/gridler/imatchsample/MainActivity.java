@@ -165,7 +165,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 licInput.read(license);
 
                 // Prepare MRZ database
-                progressDialog = new ProgressDialog(MainActivity.this);
+                /*progressDialog = new ProgressDialog(MainActivity.this);
                 progressDialog.setMessage("Initializing Document Reader");
                 progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
                 progressDialog.setIndeterminate(true);
@@ -203,6 +203,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         }
                     }
                 });
+                 */
 
                 licInput.close();
             } catch (IOException e) {
