@@ -49,7 +49,6 @@ import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
 import org.jnbis.api.Jnbis;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedOutputStream;
@@ -96,7 +95,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         ArrayList<String> permissions=new ArrayList<>();
         PermissionUtils permissionUtils = new PermissionUtils(this);
 
-        //permissions.add(Manifest.permission.READ_PHONE_STATE);
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
         permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -199,8 +197,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         else {
                             // Notify that the Document Reader license is not valid
                             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                            builder.setTitle(R.string.strInformation);
-                            builder.setMessage(R.string.strInvalidDocumentReaderLicense + ": " + error);
+                            builder.setTitle(R.string.Information);
+                            builder.setMessage(R.string.InvalidDocumentReaderLicense + ": " + error);
                             builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
@@ -289,6 +287,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void scanSmartCard(View view) {
         powerOnSCR();
+        displayLog(getResources().getString(R.string.insert_card));
     }
 
     /**
@@ -407,8 +406,11 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     @Override
     public void onSmartCardEvent(Method method, final String data) {
         Log.d(TAG, "onSmartCardEvent():" + method + ": " + data);
-        displayLog(data);
-        powerOffSCR();
+        if (method == Method.NOTIFY) {
+            byte[] atr = Base64.decode(data, Base64.NO_WRAP);
+            final String hexATR = Utils.bytesToHex(atr);
+            displayLog("ATR: " + hexATR);
+        }
     }
 
     @Override
