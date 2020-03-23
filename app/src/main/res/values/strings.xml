@@ -7,6 +7,7 @@
     <string name="button_scan_mrz">Scan MRZ</string>
     <string name="button_scan_passport">Scan Passport</string>
     <string name="button_scan_fingerprint">Scan Fingerprint</string>
+    <string name="button_emulate_fingerprint">Emulate IB Fingerprint</string>
     <string name="button_scan_smart_card">Scan Smart Card</string>
     <string name="checkbox_save_wsq">Save WSQ image to file</string>
     <string name="activity_title_pairing_activity">Connect</string>

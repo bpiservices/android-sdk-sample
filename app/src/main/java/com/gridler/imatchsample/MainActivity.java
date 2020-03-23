@@ -24,6 +24,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.gridler.imatchlib.FingerQuality;
+import com.gridler.imatchlib.ImageType;
 import com.gridler.imatchlib.ImatchFingerPrintListener;
 import com.gridler.imatchlib.ImatchManagerListener;
 import com.gridler.imatchlib.ImatchSmartCardListener;
@@ -71,9 +73,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     Button scanPassportButton;
     Button scanMrzButton;
     Button scanFingerprintButton;
+    Button emulateFingerprintButton;
     Button scanSmartCardButton;
     CheckBox saveWsqCheckbox;
     ImageView photoImageView;
+    ImageView fp1ImageView;
+    ImageView fp2ImageView;
     TextView batteryText;
     boolean documentReaderLicensed;
     String vizMrz;
@@ -109,9 +114,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         scanPassportButton = findViewById(R.id.scanPassportButton);
         scanMrzButton = findViewById(R.id.scanMrzButton);
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
+        emulateFingerprintButton = findViewById(R.id.emulateFingerprintButton);
         scanSmartCardButton = findViewById(R.id.scanSmartCardButton);
         saveWsqCheckbox = findViewById(R.id.saveWsqCheckbox);
         photoImageView = findViewById(R.id.photo);
+        fp1ImageView = findViewById(R.id.fp1);
+        fp2ImageView = findViewById(R.id.fp2);
         progressBarHolder = findViewById(R.id.progressBarHolder);
 
         // Initializes list view adapter
@@ -210,7 +218,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     }
                 });
 
-
                 licInput.close();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -263,6 +270,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         public void run() {
                             Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint);
                             photoImageView.setImageDrawable(myDrawable);
+                            photoImageView.setVisibility(View.VISIBLE);
+                            fp1ImageView.setVisibility(View.GONE);
+                            fp2ImageView.setVisibility(View.GONE);
                         }
                     });
 
@@ -275,6 +285,36 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     mFpReader.powerOn();
                     Thread.sleep(500);
                     mFpReader.enroll(enrollmentParams);
+                } catch (Exception e) {
+                    Log.e(TAG, e.getLocalizedMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * Called when the user taps the Emulate IB Fingerprint button
+     */
+    public void emulateFingerprint(View view) {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint);
+                            fp1ImageView.setImageDrawable(myDrawable);
+                            fp2ImageView.setImageDrawable(myDrawable);
+                            fp1ImageView.setVisibility(View.VISIBLE);
+                            fp2ImageView.setVisibility(View.VISIBLE);
+                            photoImageView.setVisibility(View.GONE);
+                        }
+                    });
+
+                    //mFpReader.powerOn(); // skip in emulator mode
+                    //Thread.sleep(500);
+                    mFpReader.enroll(ImageType.FLAT_TWO_FINGERS);
                 } catch (Exception e) {
                     Log.e(TAG, e.getLocalizedMessage());
                 }
@@ -296,63 +336,148 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     @Override
     public void onFingerprintEvent(Method method, String data) {
         try {
-            byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
-            switch (dataBytes[0]) {
-                case ILVConstant.ILV_ENROLL:  // Enroll result
-                    ImatchFPEnrollmentResult enroll_result = new ImatchFPEnrollmentResult(dataBytes);
-                    FingerprintImage fpImageRaw = enroll_result.getFingerprintImage();
-                    byte[] fpImageData = fpImageRaw.getImageData();
-                    displayLog("Fingerprint data received: " + fpImageData.length);
-                    if (saveWsqCheckbox.isChecked()) {
-                        String tempfile = (String) android.text.format.DateFormat.format("yyyyMMddhhmmss", new java.util.Date());
-                        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/iMatchSample/" + tempfile + ".wsq"));
-                        bos.write(fpImageData);
-                        bos.flush();
-                        bos.close();
-                    }
-                    try {
-                        final Bitmap fpImage =  Jnbis.wsq().decode(fpImageData).asBitmap();
+            Log.d(TAG, "onFingerprintEvent method: " + method);
+            Log.d(TAG, "onFingerprintEvent data: " + data);
+            
+            final byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
 
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                photoImageView.setImageBitmap(fpImage);
-                            }
-                        });
-                    }
-                    catch (Exception e) {
-                        Log.e(TAG, "WSQ to Bitmap conversion failed. Error: " + e.getMessage());
-                        Log.d(TAG, e.getStackTrace().toString());
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint_fail);
-                                photoImageView.setImageDrawable(myDrawable);
-                            }
-                        });
-                    }
-                    break;
+            if (method == Method.FP_QUALITY) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        FingerQuality fp1Quality = FingerQuality.values()[dataBytes[0]];
+                        FingerQuality fp2Quality = FingerQuality.values()[dataBytes[1]];
 
-                case ILVConstant.ILV_ASYNC_MESSAGE:  // Async message
-                    ILVAsyncMessage msg = null;
-                    msg = new ILVAsyncMessage(dataBytes);
-                    if (msg.getCommandType() == ILVAsyncMessage.MORPHO_CALLBACK_COMMAND_CMD) {
-                        final String instructionText = msg.getCommandCmd().getInstructionText();
-                        runOnUiThread(new Runnable() {
-                            public void run() {
-                                if (instructionText != null && !instructionText.equals("No finger detected")) {
-                                    Log.d(TAG, instructionText);
-                                    displayLog(instructionText);
+                        if (fp1Quality == FingerQuality.NOT_PRESENT) {
+                            fp1ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint));
+                        }
+                        if (fp1Quality == FingerQuality.POOR) {
+                            fp1ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint_orange));
+                        }
+                        if (fp1Quality == FingerQuality.FAIR) {
+                            fp1ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint_yellow));
+                        }
+                        if (fp1Quality == FingerQuality.GOOD) {
+                            fp1ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint_green));
+                        }
+
+                        if (fp2Quality == FingerQuality.NOT_PRESENT) {
+                            fp2ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint));
+                        }
+                        if (fp2Quality == FingerQuality.POOR) {
+                            fp2ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint_orange));
+                        }
+                        if (fp2Quality == FingerQuality.FAIR) {
+                            fp2ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint_yellow));
+                        }
+                        if (fp2Quality == FingerQuality.GOOD) {
+                            fp2ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint_green));
+                        }
+                    }
+                });
+            }
+
+            if (method == Method.FP_IMAGE) {
+                displayLog("Fingerprint data received: " + dataBytes.length);
+                if (saveWsqCheckbox.isChecked()) {
+                    String tempfile = (String) android.text.format.DateFormat.format("yyyyMMddhhmmss", new java.util.Date());
+                    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/iMatchSample/" + tempfile + ".wsq"));
+                    bos.write(dataBytes);
+                    bos.flush();
+                    bos.close();
+                }
+                try {
+                    final Bitmap fpImage =  Jnbis.wsq().decode(dataBytes).asBitmap();
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            photoImageView.setImageBitmap(fpImage);
+                            photoImageView.setVisibility(View.VISIBLE);
+                            fp1ImageView.setVisibility(View.GONE);
+                            fp2ImageView.setVisibility(View.GONE);
+                        }
+                    });
+                }
+                catch (Exception e) {
+                    Log.e(TAG, "WSQ to Bitmap conversion failed. Error: " + e.getMessage());
+                    Log.d(TAG, e.getStackTrace().toString());
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint_fail);
+                            photoImageView.setImageDrawable(myDrawable);
+                        }
+                    });
+                }
+            }
+
+            if (method == Method.NOTIFY) {
+                switch (dataBytes[0]) {
+                    case ILVConstant.ILV_ENROLL:  // Enroll result
+                        ImatchFPEnrollmentResult enroll_result = new ImatchFPEnrollmentResult(dataBytes);
+                        FingerprintImage fpImageRaw = enroll_result.getFingerprintImage();
+                        byte[] fpImageData = fpImageRaw.getImageData();
+                        displayLog("Fingerprint data received: " + fpImageData.length);
+                        if (saveWsqCheckbox.isChecked()) {
+                            String tempfile = (String) android.text.format.DateFormat.format("yyyyMMddhhmmss", new java.util.Date());
+                            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/iMatchSample/" + tempfile + ".wsq"));
+                            bos.write(fpImageData);
+                            bos.flush();
+                            bos.close();
+                        }
+                        try {
+                            final Bitmap fpImage = Jnbis.wsq().decode(fpImageData).asBitmap();
+
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    photoImageView.setImageBitmap(fpImage);
                                 }
-                            }
-                        });
-                    }
-                    break;
+                            });
+                        } catch (Exception e) {
+                            Log.e(TAG, "WSQ to Bitmap conversion failed. Error: " + e.getMessage());
+                            Log.d(TAG, e.getStackTrace().toString());
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Drawable myDrawable = getResources().getDrawable(R.drawable.fingerprint_fail);
+                                    photoImageView.setImageDrawable(myDrawable);
+                                }
+                            });
+                        }
+                        break;
+
+                    case ILVConstant.ILV_ASYNC_MESSAGE:  // Async message
+                        ILVAsyncMessage msg = null;
+                        msg = new ILVAsyncMessage(dataBytes);
+                        if (msg.getCommandType() == ILVAsyncMessage.MORPHO_CALLBACK_COMMAND_CMD) {
+                            final String instructionText = msg.getCommandCmd().getInstructionText();
+                            runOnUiThread(new Runnable() {
+                                public void run() {
+                                    if (instructionText != null && !instructionText.equals("No finger detected")) {
+                                        Log.d(TAG, instructionText);
+                                        displayLog(instructionText);
+                                    }
+                                }
+                            });
+                        }
+                        break;
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "onFingerprintEvent(): " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    public static byte[] subbytes(byte[] source, int srcBegin, int srcEnd) {
+        byte destination[];
+
+        destination = new byte[srcEnd - srcBegin];
+        System.arraycopy(source, srcBegin, destination, 0, srcEnd - srcBegin);
+
+        return destination;
     }
 
     /**
@@ -430,6 +555,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         connectButton.setEnabled(true);
         showToastInUiThread(this, "Connected to " + ImatchDevice.getInstance().GetName());
         scanFingerprintButton.setEnabled(true);
+        emulateFingerprintButton.setEnabled(true);
         scanSmartCardButton.setEnabled(true);
         scanMrzButton.setEnabled(documentReaderLicensed);
         monitorStatus();
@@ -442,6 +568,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     public void DeviceUnPaired() {
         scanMrzButton.setEnabled(false);
         scanFingerprintButton.setEnabled(false);
+        emulateFingerprintButton.setEnabled(false);
         scanSmartCardButton.setEnabled(false);
 
         batteryText.setVisibility(View.GONE);

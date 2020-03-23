@@ -18,7 +18,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:onClick="connectDevice"
         android:text="@string/button_connect"
         app:layout_constraintEnd_toEndOf="parent"
@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:enabled="false"
         android:onClick="scanMrz"
         android:text="@string/button_scan_mrz"
@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:enabled="false"
         android:onClick="scanPassport"
         android:text="@string/button_scan_passport"
@@ -59,7 +59,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:enabled="false"
         android:onClick="scanFingerprint"
         android:text="@string/button_scan_fingerprint"
@@ -69,19 +69,34 @@
         app:layout_constraintTop_toBottomOf="@+id/scanPassportButton" />
 
     <Button
+        android:id="@+id/emulateFingerprintButton"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:enabled="false"
+        android:onClick="emulateFingerprint"
+        android:text="@string/button_emulate_fingerprint"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/scanFingerprintButton" />
+
+    <Button
         android:id="@+id/scanSmartCardButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:enabled="false"
         android:onClick="scanSmartCard"
         android:text="@string/button_scan_smart_card"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scanFingerprintButton" />
+        app:layout_constraintTop_toBottomOf="@+id/emulateFingerprintButton" />
 
     <CheckBox
         android:id="@+id/saveWsqCheckbox"
@@ -89,7 +104,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:text="@string/checkbox_save_wsq"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
@@ -97,14 +112,29 @@
         app:layout_constraintTop_toBottomOf="@+id/scanSmartCardButton" />
 
     <ImageView
+        android:id="@+id/fp1"
+        android:layout_width="0dp"
+        android:layout_height="80dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
+
+    <ImageView
+        android:id="@+id/fp2"
+        android:layout_width="0dp"
+        android:layout_height="80dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
+
+    <ImageView
         android:id="@+id/photo"
+        android:visibility="gone"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin = "32dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
+        app:layout_constraintTop_toBottomOf="@+id/fp1" />
 
     <TextView
         android:id="@+id/textBatteryPercentage"
@@ -114,6 +144,7 @@
         android:paddingLeft="5dp"
         android:text="0%"
         android:visibility="visible"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="@+id/photo" />
 
     <FrameLayout
