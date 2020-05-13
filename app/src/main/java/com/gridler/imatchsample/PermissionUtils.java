@@ -20,7 +20,7 @@ public class PermissionUtils
 
     private Activity current_activity;
 
-    com.gridler.imatchsample.PermissionResultCallback permissionResultCallback;
+    PermissionResultCallback permissionResultCallback;
     ArrayList<String> permission_list=new ArrayList<>();
     ArrayList<String> listPermissionsNeeded=new ArrayList<>();
     String dialog_content="";

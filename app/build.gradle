@@ -4,7 +4,7 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "com.gridler.imatchsample"
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdkVersion 27
         versionCode 11
         versionName "1.1"
@@ -18,6 +18,9 @@ android {
         }
     }
     buildToolsVersion '28.0.3'
+    lintOptions {
+        abortOnError false
+    }
 }
 
 repositories {
@@ -39,7 +42,7 @@ dependencies {
         transitive = true
     }
     implementation project(':imatchsdk')
+    implementation project(':IDReader')
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-    implementation 'com.gemalto.jp2:jp2-android:1.0'
 }

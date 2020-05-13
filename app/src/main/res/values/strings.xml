@@ -5,7 +5,9 @@
     <string name="button_connect">Connect</string>
     <string name="button_disconnect">Disconnect</string>
     <string name="button_scan_mrz">Scan MRZ</string>
-    <string name="button_scan_passport">Scan Passport</string>
+    <string name="button_read_passport_native">Read Passport - Native</string>
+    <string name="button_read_passport_id_reader">Read Passport - ID Reader SDK</string>
+    <string name="button_read_passport_id_reader_nfc">Read Passport - ID Reader SDK NFC</string>
     <string name="button_scan_fingerprint">Scan Fingerprint</string>
     <string name="button_emulate_fingerprint">Emulate IB Fingerprint</string>
     <string name="button_scan_smart_card">Scan Smart Card</string>

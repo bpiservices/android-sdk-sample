@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context="com.gridler.imatchsample.MainActivity">
 
     <ListView
         android:id="@android:id/list"
@@ -40,18 +40,46 @@
         app:layout_constraintTop_toBottomOf="@+id/connectButton" />
 
     <Button
-        android:id="@+id/scanPassportButton"
+        android:id="@+id/readPassportNativeButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="4dp"
         android:enabled="false"
-        android:onClick="scanPassport"
-        android:text="@string/button_scan_passport"
+        android:onClick="readPassportNative"
+        android:text="@string/button_read_passport_native"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/scanMrzButton" />
+
+    <Button
+        android:id="@+id/readPassportIDReaderButton"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:enabled="false"
+        android:onClick="readPassportIDReader"
+        android:text="@string/button_read_passport_id_reader"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/readPassportNativeButton" />
+
+    <Button
+        android:id="@+id/readPassportIDReaderNFCButton"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:enabled="false"
+        android:onClick="readPassportIDReaderNFC"
+        android:text="@string/button_read_passport_id_reader_nfc"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/readPassportIDReaderButton" />
 
     <Button
         android:id="@+id/scanFingerprintButton"
@@ -66,7 +94,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scanPassportButton" />
+        app:layout_constraintTop_toBottomOf="@+id/readPassportIDReaderNFCButton" />
 
     <Button
         android:id="@+id/emulateFingerprintButton"

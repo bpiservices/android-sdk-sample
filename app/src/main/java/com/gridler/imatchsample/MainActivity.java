@@ -3,7 +3,6 @@ package com.gridler.imatchsample;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.ListActivity;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
@@ -29,13 +28,11 @@ import com.gridler.imatchlib.ImageType;
 import com.gridler.imatchlib.ImatchFingerPrintListener;
 import com.gridler.imatchlib.ImatchManagerListener;
 import com.gridler.imatchlib.ImatchSmartCardListener;
-import com.gridler.imatchlib.MrtdUtils;
 import com.gridler.imatchlib.Utils;
 import com.gridler.imatchsdk.FingerprintImage;
 import com.gridler.imatchsdk.ImatchFPEnrollmentParams;
 import com.gridler.imatchsdk.ImatchFPEnrollmentResult;
 import com.gridler.imatchsdk.ImatchFingerprintReader;
-import com.gridler.imatchsdk.Hex;
 import com.gridler.imatchsdk.ILVAsyncMessage;
 import com.gridler.imatchsdk.ILVConstant;
 import com.gridler.imatchsdk.ImatchManager;
@@ -59,18 +56,29 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
 
-public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback {
+import eu.bpiservices.idreadersdk.CertValidator;
+import eu.bpiservices.idreadersdk.ReadResponse;
+import eu.bpiservices.idreadersdk.ReadTask;
+
+import static eu.bpiservices.idreadersdk.Utils.READ_MRTD_FILE_ALL_CODE;
+import static eu.bpiservices.idreadersdk.Utils.getDocSigningCertificate;
+
+public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse {
     static String TAG = MainActivity.class.getSimpleName();
     ImatchFingerprintReader mFpReader;
     ImatchSmartcardReader mScReader;
 
     Button connectButton;
-    Button scanPassportButton;
+    Button readPassportNativeButton;
+    Button readPassportIDReaderButton;
+    Button readPassportIDReaderNFCButton;
     Button scanMrzButton;
     Button scanFingerprintButton;
     Button emulateFingerprintButton;
@@ -90,8 +98,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     boolean activityOnTop = true;
     boolean readingChip = false;
 
-    ProgressDialog progressDialog;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -108,10 +114,11 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         permissions.add(Manifest.permission.CAMERA);
         permissionUtils.check_permission(permissions,"To function correctly this application needs the following permissions",1);
 
-
         batteryText = findViewById(R.id.textBatteryPercentage);
         connectButton = findViewById(R.id.connectButton);
-        scanPassportButton = findViewById(R.id.scanPassportButton);
+        readPassportNativeButton = findViewById(R.id.readPassportNativeButton);
+        readPassportIDReaderButton = findViewById(R.id.readPassportIDReaderButton);
+        readPassportIDReaderNFCButton = findViewById(R.id.readPassportIDReaderNFCButton);
         scanMrzButton = findViewById(R.id.scanMrzButton);
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
         emulateFingerprintButton = findViewById(R.id.emulateFingerprintButton);
@@ -132,6 +139,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         mFpReader = ImatchFingerprintReader.getInstance();
         mFpReader.setListener(this);
         checkDocumentReaderLicense();
+
+        CertValidator.getInstance().Init(this);
     }
 
     @Override
@@ -178,13 +187,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 final byte[] license = new byte[licInput.available()];
                 licInput.read(license);
 
-                // Prepare MRZ database
-                progressDialog = new ProgressDialog(MainActivity.this);
-                progressDialog.setMessage("Initializing Document Reader");
-                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progressDialog.setIndeterminate(true);
-                progressDialog.show();
-
                 //Initializing the reader
                 DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
                     @Override
@@ -194,10 +196,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         DocumentReader.Instance().functionality().setVideoCaptureMotionControl(true);
 
                         documentReaderLicensed = success;
-
-                        if(progressDialog.isShowing()) {
-                            progressDialog.dismiss();
-                        }
 
                         if (documentReaderLicensed) {
                             DocumentReader.Instance().processParams().scenario = "Mrz";
@@ -245,20 +243,32 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     }
 
     /**
-     * Called when the user taps the Scan Passport button
+     * Called when the user taps the Read Passport Native button
      */
-    public void scanPassport(View view) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                photoImageView.setImageDrawable(null);
-            }
-        });
-        readMRTD(vizMrz);
+    public void readPassportNative(View view) {
+        new ReadPassportNativeTask().execute();
     }
 
     /**
-     * Called when the user taps the Scan Fingerprint button
+     * Called when the user taps the Read Passport ID Reader button
+     */
+    public void readPassportIDReader(View view) {
+        ReadTask readTask = new ReadTask( MainActivity.this, vizMrz,false, READ_MRTD_FILE_ALL_CODE, false, false, false, this);
+        ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
+        readTask.setCardService(iMatchCardService);
+        readTask.execute();
+    }
+
+    /**
+     * Called when the user taps the Read Passport ID Reader NFC button
+     */
+    public void readPassportIDReaderNFC(View view) {
+        ReadTask readTask = new ReadTask( MainActivity.this, vizMrz,false, READ_MRTD_FILE_ALL_CODE, false, false, false, this);
+        readTask.execute();
+    }
+
+    /**
+     * Called when the user taps the Read Fingerprint button
      */
     public void scanFingerprint(View view) {
         AsyncTask.execute(new Runnable() {
@@ -347,6 +357,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     public void run() {
                         FingerQuality fp1Quality = FingerQuality.values()[dataBytes[0]];
                         FingerQuality fp2Quality = FingerQuality.values()[dataBytes[1]];
+
+                        Log.e(TAG, "fp1Quality: " + fp1Quality);
+                        Log.e(TAG, "fp2Quality: " + fp2Quality);
 
                         if (fp1Quality == FingerQuality.NOT_PRESENT) {
                             fp1ImageView.setImageDrawable(getResources().getDrawable(R.drawable.fingerprint));
@@ -471,15 +484,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         }
     }
 
-    public static byte[] subbytes(byte[] source, int srcBegin, int srcEnd) {
-        byte destination[];
-
-        destination = new byte[srcEnd - srcBegin];
-        System.arraycopy(source, srcBegin, destination, 0, srcEnd - srcBegin);
-
-        return destination;
-    }
-
     /**
      * Called when a fingerprint error is received
      */
@@ -504,22 +508,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "powerOnSCR(): " + e.getLocalizedMessage());
-                }
-            }
-        });
-    }
-
-    public void powerOffSCR() {
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    boolean result = mScReader.getInstance().powerReaderOff();
-                    if (result) {
-                        Log.d(TAG,"powerOffSCR(): " +  result);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "powerOffSCR(): " + e.getLocalizedMessage());
                 }
             }
         });
@@ -567,6 +555,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void DeviceUnPaired() {
         scanMrzButton.setEnabled(false);
+        readPassportNativeButton.setEnabled(false);
+        readPassportIDReaderButton.setEnabled(false);
         scanFingerprintButton.setEnabled(false);
         emulateFingerprintButton.setEnabled(false);
         scanSmartCardButton.setEnabled(false);
@@ -666,7 +656,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         }
     }
 
-
     @Override
     public void onInitSuccess() {
         Log.i(TAG, "onInitSuccess");
@@ -726,11 +715,19 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                                 case 172:
                                 case 51:
                                     vizMrz = value;
-                                    scanPassportButton.setEnabled(true);
+
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            photoImageView.setImageDrawable(null);
+                                        }
+                                    });
+
+                                    readPassportNativeButton.setEnabled(true);
+                                    readPassportIDReaderButton.setEnabled(true);
+                                    readPassportIDReaderNFCButton.setEnabled(true);
                                     break;
                             }
-
-                            Log.d("MainActivity", value + "\n");
                         }
                     }
                 }
@@ -747,45 +744,10 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     };
 
     /**
-     * Builds the BAC from the MRZ and starts a task to read the passport
-     */
-    private void readMRTD(final String vizMrz) {
-        try {
-            String mrz1 = "";
-            String mrz2 = "";
-            String bacMrz = "";
-            Integer counter = 0;
-            String[] parts = vizMrz.split("\\r?\\n", -1);
-            for (String item : parts) {
-                if (counter == 0) {
-                    mrz1 = item;
-                    counter = 1;
-                } else if (counter == 1) {
-                    mrz2 = item;
-                    counter = 2;
-                } else if (counter == 2) {
-                    counter = 3;
-                }
-            }
-            if (counter == 3) bacMrz = mrz1 + mrz2;
-            else if (counter == 2) bacMrz = mrz2;
-            if ("".equals(bacMrz)) bacMrz = vizMrz;
-            new ReadMRTDTask(this, bacMrz).execute();
-        } catch (Exception ex) {
-            Log.e(TAG, ex.getMessage());
-            ex.printStackTrace();
-        }
-    }
-
-    /**
      * Reads the passport with the BAC from the MRZ
      */
-    private class ReadMRTDTask extends AsyncTask<Void, Void, Exception> {
-        private String bacMrz;
-        long start, stop, mark;
-
-        ReadMRTDTask(Context context, String bacMrz) {
-            this.bacMrz = bacMrz;
+    private class ReadPassportNativeTask extends AsyncTask<Void, Void, Exception> {
+        ReadPassportNativeTask() {
         }
 
         @Override
@@ -793,70 +755,51 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
             try {
                 displayLog("Start reading chip");
                 readingChip = true;
-                mark = System.currentTimeMillis();
-                start = System.currentTimeMillis();
 
                 // Initialize the passport read process on the iMatch
                 String bypassPACE = "0";
                 String checkMAC = "1";
                 String includeHeaders = "1";
                 String apduLogging = "0";
-                String params = bacMrz + "," + bypassPACE + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+
+                String formattedMrz = Utils.formatMrz(vizMrz);
+                String params = formattedMrz + "," + bypassPACE + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
                 String bacResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, params);
                 if (!bacResult.equals("1")) {
-                    displayLog(String.format("BAC failed. %1$dms", System.currentTimeMillis() - mark));
+                    displayLog("BAC failed.");
                     throw new Exception("BAC failed");
                 }
 
-                displayLog(String.format("Performed ICAO BAC. %1$dms", System.currentTimeMillis() - mark));
-                mark = System.currentTimeMillis();
+                displayLog("Performed ICAO BAC.");
                 publishProgress();
 
                 // Read DG2 (passport photo)
                 String dg2Result = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG2");
                 Log.d(TAG, "DG2 Result: " + dg2Result);
-                byte[] dg2Bytes = Base64.decode(dg2Result, Base64.NO_WRAP);
-
-                String hex = Hex.encodeHex(dg2Bytes, true);
-                String start = "FFD8FF";
-                int startindex = 80;
-
-                final String photoMimeType;
-                if (hex.contains("FFD8FF")) {
-                    startindex = (hex.indexOf(start)) / 2;
-                    photoMimeType = "image/jpeg";
-                } else
-                    photoMimeType = "image/jp2";
-
-                Log.d(TAG, "mime: photoMimeType: " + photoMimeType);
-                displayLog(String.format("Read DG2. %1$dms", System.currentTimeMillis() - mark));
-                mark = System.currentTimeMillis();
-                publishProgress();
-
-                final byte[] photoBytes = Arrays.copyOfRange(dg2Bytes, startindex, dg2Bytes.length);
+                final byte[] dg2Bytes = Base64.decode(dg2Result, Base64.NO_WRAP);
 
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        new DecodeImageTask(photoBytes, photoMimeType).execute();
+                        new DecodeImageTask(dg2Bytes).execute();
                     }
                 });
 
                 try {
                     // Read SOD (document security object)
                     final byte[] certBytes = Base64.decode(ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "SOD"), Base64.NO_WRAP);
-                    displayLog(String.format("Read SecurityData. %1$dms", System.currentTimeMillis() - mark));
-                    mark = System.currentTimeMillis();
+                    displayLog("Read SecurityData.");
                     publishProgress();
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             try {
-                                X509Certificate cert = Utils.getDocSigningCertificate(certBytes);
+                                X509Certificate cert = getDocSigningCertificate(certBytes);
                                 displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
-                            } catch (Exception ecert) {
-                                Log.e(TAG, "cert: " + ecert.getMessage());
-                                ecert.printStackTrace();
+                                checkCertificateChain(cert);
+                            } catch (Exception e) {
+                                Log.e(TAG, "cert: " + e.getMessage());
+                                e.printStackTrace();
                             }
                         }
                     });
@@ -867,8 +810,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 // Read DG1
                 String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG1");
-                displayLog(String.format("Read DG1. %1$dms", System.currentTimeMillis() - mark));
-                mark = System.currentTimeMillis();
+                displayLog("Read DG1.");
                 publishProgress();
 
                 readingChip = false;
@@ -885,10 +827,53 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         @Override
         protected void onPostExecute(Exception result) {
             if (result == null) {
-                stop = System.currentTimeMillis();
-                displayLog(String.format("Finished reading document in %1$dms", stop - start));
+                displayLog("Finished reading document");
             }
         }
+    }
+
+    private void checkCertificateChain(final X509Certificate cert) {
+        PKIXCertPathValidatorResult certCheck;
+        try {
+            if (CertValidator.getInstance().isReady()) {
+                certCheck = CertValidator.getInstance().CheckCertificateChain(cert.getEncoded());
+                displayLog("Valid certificate - CA name: " + certCheck.getTrustAnchor().toString());
+            }
+        } catch (CertificateEncodingException e) {
+            displayLog("Certificate error: " + e.getMessage());
+        } catch (CertPathValidatorException e) {
+            displayLog("Certificate error: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void readCompleted(final eu.bpiservices.idreadersdk.ReadResult readResult) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (readResult.Cancelled) {
+                    return;
+                }
+
+                try {
+                    X509Certificate cert = getDocSigningCertificate(readResult.Dg14Data);
+                    displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
+                    checkCertificateChain(cert);
+                } catch (Exception e) {
+                    Log.e(TAG, "cert: " + e.getMessage());
+                    e.printStackTrace();
+                }
+
+                byte[] dg2Bytes = readResult.PhotoData;
+                new DecodeImageTask(dg2Bytes).execute();
+            }
+        });
+    }
+
+    @Override
+    public void readProgress(eu.bpiservices.idreadersdk.ReadStep step, long timestamp, String info) {
+        Log.d(TAG, "readProgress: " + step);
+        displayLog("readProgress: " + step);
     }
 
     private class DecodeImageTask extends AsyncTask<Void, Void, Exception> {
@@ -896,15 +881,24 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         private String photoMimeType;
         private Bitmap photoBitmap;
 
-        DecodeImageTask(byte[] photoBytes, String photoMimeType) {
-            this.photoBytes = photoBytes;
-            this.photoMimeType = photoMimeType;
+        DecodeImageTask(byte[] dg2Bytes) {
+            int startIndex = Utils.indexOf(dg2Bytes, new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
+            if (startIndex > 0) {
+                Log.d(TAG, "startindex JPEG: " + startIndex);
+                this.photoMimeType = "image/jpeg";
+            } else {
+                startIndex = Utils.indexOf(dg2Bytes, new byte[]{0x00, 0x00, 0x00, 0x00, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, (byte) 0x87, 0x0A}) + 1;
+                Log.d(TAG, "startindex JPEG2000: " + startIndex);
+                this.photoMimeType = "image/jp2";
+            }
+
+            this.photoBytes = Utils.subbytes(dg2Bytes, startIndex);;
         }
 
         @Override
         protected Exception doInBackground(Void... params) {
             try {
-                photoBitmap = MrtdUtils.read(new ByteArrayInputStream(photoBytes), photoMimeType);
+                photoBitmap = eu.bpiservices.idreadersdk.MrtdUtils.read(new ByteArrayInputStream(photoBytes), photoMimeType);
             } catch (IOException e) {
                 Log.e(TAG, "DecodeImageTask: " + e.getMessage());
                 e.printStackTrace();
@@ -918,6 +912,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        photoImageView.setVisibility(View.VISIBLE);
                         photoImageView.setImageBitmap(photoBitmap);
                     }
                 });
@@ -949,9 +944,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         showToastInUiThread(this, message);
     }
 
-    public static void showToastInUiThread(final Context ctx,
-                                           final String message) {
-
+    public static void showToastInUiThread(final Context ctx, final String message) {
         Handler mainThread = new Handler(Looper.getMainLooper());
         mainThread.post(new Runnable() {
             @Override

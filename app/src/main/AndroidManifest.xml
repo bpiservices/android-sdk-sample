@@ -26,9 +26,6 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material"
         tools:replace="android:theme">
-        <service
-            android:name="com.gridler.gubanilib.BluetoothLeService"
-            android:enabled="true" />
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
