@@ -253,8 +253,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      * Called when the user taps the Read Passport ID Reader button
      */
     public void readPassportIDReader(View view) {
-        ReadTask readTask = new ReadTask( MainActivity.this, vizMrz,false, READ_MRTD_FILE_ALL_CODE, false, false, false, this);
         ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.setCardService(iMatchCardService);
         readTask.execute();
     }
@@ -263,7 +263,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      * Called when the user taps the Read Passport ID Reader NFC button
      */
     public void readPassportIDReaderNFC(View view) {
-        ReadTask readTask = new ReadTask( MainActivity.this, vizMrz,false, READ_MRTD_FILE_ALL_CODE, false, false, false, this);
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.execute();
     }
 
@@ -705,40 +705,39 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         @Override
         public void onCompleted(int action, DocumentReaderResults results, String error) {
             if (action == DocReaderAction.COMPLETE) {
-                if (results!=null)
-                {
-                    if(results.textResult != null && results.textResult.fields != null) {
-                        for (DocumentReaderTextField textField : results.textResult.fields) {
-                            String value = results.getTextFieldValueByType(textField.fieldType, textField.lcid);
-                            switch (textField.fieldType)
-                            {
-                                case 172:
-                                case 51:
-                                    vizMrz = value;
+                if (results == null) {
+                    return;
+                }
+                if (results.textResult == null || results.textResult.fields == null) {
+                    return;
+                }
 
-                                    runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            photoImageView.setImageDrawable(null);
-                                        }
-                                    });
+                for (DocumentReaderTextField textField : results.textResult.fields) {
+                    String value = results.getTextFieldValueByType(textField.fieldType, textField.lcid);
+                    switch (textField.fieldType) {
+                        case 172:
+                        case 51:
+                            vizMrz = value;
 
-                                    readPassportNativeButton.setEnabled(true);
-                                    readPassportIDReaderButton.setEnabled(true);
-                                    readPassportIDReaderNFCButton.setEnabled(true);
-                                    break;
-                            }
-                        }
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    photoImageView.setImageDrawable(null);
+                                }
+                            });
+
+                            readPassportNativeButton.setEnabled(true);
+                            readPassportIDReaderButton.setEnabled(true);
+                            readPassportIDReaderNFCButton.setEnabled(true);
+                            break;
                     }
                 }
-            } else {
-                if(action==DocReaderAction.CANCEL){
-                    Log.e(TAG, "DocReaderAction.CANCEL");
-                    Toast.makeText(MainActivity.this, "Scanning cancelled",Toast.LENGTH_LONG).show();
-                } else if(action == DocReaderAction.ERROR){
-                    Log.e(TAG, "DocReaderAction.ERROR: " + error);
-                    Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show();
-                }
+            } else if (action == DocReaderAction.CANCEL) {
+                Log.e(TAG, "DocReaderAction.CANCEL");
+                Toast.makeText(MainActivity.this, "Scanning cancelled", Toast.LENGTH_LONG).show();
+            } else if (action == DocReaderAction.ERROR) {
+                Log.e(TAG, "DocReaderAction.ERROR: " + error);
+                Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show();
             }
         }
     };
@@ -764,13 +763,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 String formattedMrz = Utils.formatMrz(vizMrz);
                 String params = formattedMrz + "," + bypassPACE + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
-                String bacResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, params);
-                if (!bacResult.equals("1")) {
-                    displayLog("BAC failed.");
-                    throw new Exception("BAC failed");
+                String accessResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, params);
+                if (!accessResult.equals("1")) {
+                    displayLog("Access control failed.");
+                    throw new Exception("Access control failed");
                 }
 
-                displayLog("Performed ICAO BAC.");
+                displayLog("Performed access control.");
                 publishProgress();
 
                 // Read DG2 (passport photo)
@@ -781,7 +780,25 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        new DecodeImageTask(dg2Bytes).execute();
+                        String photoMimeType;
+                        int startIndex = Utils.indexOf(dg2Bytes, new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
+                        if (startIndex > 0) {
+                            photoMimeType = "image/jpeg";
+                        } else {
+                            startIndex = Utils.indexOf(dg2Bytes, new byte[]{0x00, 0x00, 0x00, 0x00, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, (byte) 0x87, 0x0A}) + 1;
+                            photoMimeType = "image/jp2";
+                        }
+
+                        byte[] photoBytes = Utils.subbytes(dg2Bytes, startIndex);
+
+                        try {
+                            Bitmap photoBitmap = eu.bpiservices.idreadersdk.MrtdUtils.read(new ByteArrayInputStream(photoBytes), photoMimeType);
+                            photoImageView.setVisibility(View.VISIBLE);
+                            photoImageView.setImageBitmap(photoBitmap);
+                        } catch (IOException e) {
+                            Log.e(TAG, "DecodeImageTask: " + e.getMessage());
+                            e.printStackTrace();
+                        }
                     }
                 });
 
@@ -851,21 +868,49 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                Log.d(TAG, "ResultCode: " + readResult.ResultCode);
+
                 if (readResult.Cancelled) {
                     return;
                 }
 
                 try {
-                    X509Certificate cert = getDocSigningCertificate(readResult.Dg14Data);
+                    
+                    Log.d(TAG, "COM LDS Version: " + readResult.COM.getLDSVersion());
+                    Log.d(TAG, "COM TAG List: " + readResult.COM.getTagList());
+
+                    Log.d(TAG, "SOD LDS Version: " + readResult.SOD.getLDSVersion());
+                    Log.d(TAG, "SOD Digest Algorithm: " + readResult.SOD.getDigestAlgorithm());
+                    Log.d(TAG, "SOD Signer Info Digest Algorithm: " + readResult.SOD.getSignerInfoDigestAlgorithm());
+
+                    Map<Integer, byte[]> dataGroupHashes = readResult.SOD.getDataGroupHashes();
+                    for (Integer key : dataGroupHashes.keySet()) {
+                        Log.d(TAG, "DG " + key + " hash: " + Utils.bytesToHex(dataGroupHashes.get(key)));
+                    }
+
+                    Log.d(TAG, "DG1 MRZ Info: " + readResult.DG1.getMRZInfo());
+
+                    Log.d(TAG, "DG2 face biometric encodings: " + readResult.DG2.getFaceInfos().size());
+
+                    if (readResult.DG3 != null ) {
+                        Log.d(TAG, "DG3 face biometric encodings: " + readResult.DG3.getFingerInfos().size());
+                    }
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            photoImageView.setVisibility(View.VISIBLE);
+                            photoImageView.setImageBitmap(readResult.PhotoBitmap);
+                        }
+                    });
+
+                    X509Certificate cert = getDocSigningCertificate(readResult.SOD.getEncoded());
                     displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
                     checkCertificateChain(cert);
                 } catch (Exception e) {
                     Log.e(TAG, "cert: " + e.getMessage());
                     e.printStackTrace();
                 }
-
-                byte[] dg2Bytes = readResult.PhotoData;
-                new DecodeImageTask(dg2Bytes).execute();
             }
         });
     }
@@ -874,50 +919,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     public void readProgress(eu.bpiservices.idreadersdk.ReadStep step, long timestamp, String info) {
         Log.d(TAG, "readProgress: " + step);
         displayLog("readProgress: " + step);
-    }
-
-    private class DecodeImageTask extends AsyncTask<Void, Void, Exception> {
-        private byte[] photoBytes;
-        private String photoMimeType;
-        private Bitmap photoBitmap;
-
-        DecodeImageTask(byte[] dg2Bytes) {
-            int startIndex = Utils.indexOf(dg2Bytes, new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
-            if (startIndex > 0) {
-                Log.d(TAG, "startindex JPEG: " + startIndex);
-                this.photoMimeType = "image/jpeg";
-            } else {
-                startIndex = Utils.indexOf(dg2Bytes, new byte[]{0x00, 0x00, 0x00, 0x00, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, (byte) 0x87, 0x0A}) + 1;
-                Log.d(TAG, "startindex JPEG2000: " + startIndex);
-                this.photoMimeType = "image/jp2";
-            }
-
-            this.photoBytes = Utils.subbytes(dg2Bytes, startIndex);;
-        }
-
-        @Override
-        protected Exception doInBackground(Void... params) {
-            try {
-                photoBitmap = eu.bpiservices.idreadersdk.MrtdUtils.read(new ByteArrayInputStream(photoBytes), photoMimeType);
-            } catch (IOException e) {
-                Log.e(TAG, "DecodeImageTask: " + e.getMessage());
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Exception result) {
-            if (result == null) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        photoImageView.setVisibility(View.VISIBLE);
-                        photoImageView.setImageBitmap(photoBitmap);
-                    }
-                });
-            }
-        }
     }
 
     /**
