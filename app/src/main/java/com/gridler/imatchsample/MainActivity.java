@@ -64,11 +64,11 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import eu.bpiservices.idreadersdk.CertValidator;
+import eu.bpiservices.idreadersdk.MrtdUtils;
 import eu.bpiservices.idreadersdk.ReadResponse;
 import eu.bpiservices.idreadersdk.ReadTask;
 
 import static eu.bpiservices.idreadersdk.Utils.READ_MRTD_FILE_ALL_CODE;
-import static eu.bpiservices.idreadersdk.Utils.getDocSigningCertificate;
 
 public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse {
     static String TAG = MainActivity.class.getSimpleName();
@@ -811,7 +811,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         @Override
                         public void run() {
                             try {
-                                X509Certificate cert = getDocSigningCertificate(certBytes);
+                                X509Certificate cert = MrtdUtils.getDocSigningCertificate(certBytes);
                                 displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
                                 checkCertificateChain(cert);
                             } catch (Exception e) {
@@ -875,13 +875,20 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 }
 
                 try {
-                    
                     Log.d(TAG, "COM LDS Version: " + readResult.COM.getLDSVersion());
                     Log.d(TAG, "COM TAG List: " + readResult.COM.getTagList());
 
                     Log.d(TAG, "SOD LDS Version: " + readResult.SOD.getLDSVersion());
                     Log.d(TAG, "SOD Digest Algorithm: " + readResult.SOD.getDigestAlgorithm());
                     Log.d(TAG, "SOD Signer Info Digest Algorithm: " + readResult.SOD.getSignerInfoDigestAlgorithm());
+
+                    try{
+                        readResult.SOD.getDocSigningCertificate().checkValidity();
+                        MrtdUtils.verifySod(readResult.SOD.getEncoded());
+                        Log.d(TAG, "SOD verified");
+                    } catch (Exception e) {
+                        Log.d(TAG, "SOD verification error: " + e.getMessage());
+                    }
 
                     Map<Integer, byte[]> dataGroupHashes = readResult.SOD.getDataGroupHashes();
                     for (Integer key : dataGroupHashes.keySet()) {
@@ -890,10 +897,19 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                     Log.d(TAG, "DG1 MRZ Info: " + readResult.DG1.getMRZInfo());
 
+                    Boolean dg1Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG1);
+                    Log.d(TAG, "DG1 hash matches: " + dg1Valid);
+
                     Log.d(TAG, "DG2 face biometric encodings: " + readResult.DG2.getFaceInfos().size());
+
+                    Boolean dg2Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG2);
+                    Log.d(TAG, "DG2 hash matches: " + dg2Valid);
 
                     if (readResult.DG3 != null ) {
                         Log.d(TAG, "DG3 face biometric encodings: " + readResult.DG3.getFingerInfos().size());
+
+                        Boolean dg3Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG3);
+                        Log.d(TAG, "DG3 hash matches: " + dg3Valid);
                     }
 
                     runOnUiThread(new Runnable() {
@@ -904,9 +920,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         }
                     });
 
-                    X509Certificate cert = getDocSigningCertificate(readResult.SOD.getEncoded());
+                    X509Certificate cert = MrtdUtils.getDocSigningCertificate(readResult.SOD.getEncoded());
                     displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
                     checkCertificateChain(cert);
+
+                    //MrtdUtils.CRLCheck(cert, x509CRL);
+                    
                 } catch (Exception e) {
                     Log.e(TAG, "cert: " + e.getMessage());
                     e.printStackTrace();
