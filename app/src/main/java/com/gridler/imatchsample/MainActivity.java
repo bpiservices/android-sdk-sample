@@ -43,6 +43,8 @@ import com.gridler.imatchlib.Method;
 import com.gridler.imatchlib.ImatchListener;
 import com.gridler.imatchsdk.ImatchSmartcardReader;
 import com.regula.documentreader.api.DocumentReader;
+import com.regula.documentreader.api.completions.IDocumentReaderCompletion;
+import com.regula.documentreader.api.completions.IDocumentReaderInitCompletion;
 import com.regula.documentreader.api.enums.DocReaderAction;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
@@ -188,12 +190,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 licInput.read(license);
 
                 //Initializing the reader
-                DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
+                DocumentReader.Instance().initializeReader(MainActivity.this, license, new IDocumentReaderInitCompletion() {
                     @Override
                     public void onInitCompleted(boolean success, String error) {
-                        DocumentReader.Instance().customization().setShowResultStatusMessages(true);
-                        DocumentReader.Instance().customization().setShowStatusMessages(true);
-                        DocumentReader.Instance().functionality().setVideoCaptureMotionControl(true);
+                        DocumentReader.Instance().customization().edit().setShowResultStatusMessages(true).apply();
+                        DocumentReader.Instance().customization().edit().setShowStatusMessages(true).apply();;
+                        DocumentReader.Instance().functionality().edit().setVideoCaptureMotionControl(true).apply();;
 
                         documentReaderLicensed = success;
 
@@ -239,7 +241,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void scanMrz(View view) {
         // Launch OCR scanner
-        DocumentReader.Instance().showScanner(completion);
+        DocumentReader.Instance().showScanner(this, completion);
     }
 
     /**
@@ -256,6 +258,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
         ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.setCardService(iMatchCardService);
+        readTask.setBypassPace(true);
+        readTask.setApduLogging(true);
         readTask.execute();
     }
 
@@ -701,7 +705,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     /**
      * Called when the Document Reader decodes a MRZ code
      */
-    private DocumentReader.DocumentReaderCompletion completion = new DocumentReader.DocumentReaderCompletion() {
+    private IDocumentReaderCompletion completion = new IDocumentReaderCompletion() {
         @Override
         public void onCompleted(int action, DocumentReaderResults results, String error) {
             if (action == DocReaderAction.COMPLETE) {
@@ -925,7 +929,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     checkCertificateChain(cert);
 
                     //MrtdUtils.CRLCheck(cert, x509CRL);
-                    
+
                 } catch (Exception e) {
                     Log.e(TAG, "cert: " + e.getMessage());
                     e.printStackTrace();
