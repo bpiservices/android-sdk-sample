@@ -5,9 +5,11 @@ import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,6 +24,8 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.app.ActivityCompat;
 
 import com.gridler.imatchlib.FingerQuality;
 import com.gridler.imatchlib.ImageType;
@@ -49,15 +53,28 @@ import com.regula.documentreader.api.enums.DocReaderAction;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
+import org.ejbca.cvc.CVCObject;
+import org.ejbca.cvc.CardVerifiableCertificate;
+import org.ejbca.cvc.CertificateParser;
+import org.jmrtd.Util;
+import org.jmrtd.cert.CVCPrincipal;
+import org.jmrtd.cert.CVCertificateFactorySpi;
 import org.jnbis.api.Jnbis;
 import org.json.JSONObject;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.PKIXCertPathValidatorResult;
@@ -67,12 +84,14 @@ import java.util.Map;
 
 import eu.bpiservices.idreadersdk.CertValidator;
 import eu.bpiservices.idreadersdk.MrtdUtils;
+import eu.bpiservices.idreadersdk.ReadProcess;
 import eu.bpiservices.idreadersdk.ReadResponse;
 import eu.bpiservices.idreadersdk.ReadTask;
 
 import static eu.bpiservices.idreadersdk.Utils.READ_MRTD_FILE_ALL_CODE;
+import static eu.bpiservices.idreadersdk.Utils.getBouncyCastleProvider;
 
-public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse {
+public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse, ReadProcess {
     static String TAG = MainActivity.class.getSimpleName();
     ImatchFingerprintReader mFpReader;
     ImatchSmartcardReader mScReader;
@@ -143,6 +162,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         checkDocumentReaderLicense();
 
         CertValidator.getInstance().Init(this);
+
+        checkStoragePermission();
     }
 
     @Override
@@ -268,7 +289,39 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void readPassportIDReaderNFC(View view) {
         ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
+        readTask.setApduLogging(true);
+
+        String keystorePath = "terminalCertificates/";
+        ArrayList<org.jmrtd.cert.CardVerifiableCertificate> certificates = new ArrayList<>();
+        CVCPrincipal caRef = null;
+
+        try {
+            byte[] cvcert = readFile(keystorePath + "TEST100003.cvcert");
+            CVCObject cvcObject = CertificateParser.parseCVCObject(cvcert);
+            CardVerifiableCertificate cvc = new CardVerifiableCertificate((org.ejbca.cvc.CVCertificate) cvcObject);
+            CVCertificateFactorySpi cvcFactory = new CVCertificateFactorySpi();
+            InputStream myInputStream = new ByteArrayInputStream(cvc.getEncoded());
+            org.jmrtd.cert.CardVerifiableCertificate cert = (org.jmrtd.cert.CardVerifiableCertificate) cvcFactory.engineGenerateCertificate(myInputStream);
+            certificates.add(cert);
+
+            caRef = cert.getAuthorityReference();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        readTask.setChipAuthentication(true);
+        readTask.setTerminalAuthentication(certificates, caRef, this);
         readTask.execute();
+    }
+
+    public byte[] readFile(String name) throws Exception {
+        File root = Environment.getExternalStorageDirectory();
+        File myFile = new File(root, name);
+        FileInputStream f = new FileInputStream(new File(root, name));
+        byte data[] = new byte[(int)myFile.length()];
+        f.read(data, 0, data.length);
+        f.close();
+        return data;
     }
 
     /**
@@ -352,7 +405,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         try {
             Log.d(TAG, "onFingerprintEvent method: " + method);
             Log.d(TAG, "onFingerprintEvent data: " + data);
-            
+
             final byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
 
             if (method == Method.FP_QUALITY) {
@@ -746,6 +799,47 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         }
     };
 
+    @Override
+    public byte[] signTA(String sigAlg, byte[] dtbsBytes) {
+        Provider bouncyCastleProvider = getBouncyCastleProvider();
+        Signature sig = null;
+
+        PrivateKey terminalKey = getKey(sigAlg);
+        try {
+            sig = Signature.getInstance(sigAlg, bouncyCastleProvider);
+            sig.initSign(terminalKey);
+            sig.update(dtbsBytes);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (InvalidKeyException e) {
+            e.printStackTrace();
+        } catch (SignatureException e) {
+            e.printStackTrace();
+        }
+
+        byte[] signedData = new byte[0];
+        try {
+            signedData = sig.sign();
+
+            if (sigAlg.toUpperCase().endsWith("ECDSA")) {
+                int keySize = (int)Math.ceil(((org.bouncycastle.jce.interfaces.ECPrivateKey)terminalKey).getParameters().getCurve().getFieldSize() / 8.0);
+                try {
+                    signedData = Util.getRawECDSASignature(signedData, keySize);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (SignatureException e) {
+            e.printStackTrace();
+        }
+
+        return signedData;
+    }
+
+    private PrivateKey getKey(String sigAlg) {
+        return null;
+    }
+
     /**
      * Reads the passport with the BAC from the MRZ
      */
@@ -976,6 +1070,24 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 Toast.makeText(ctx, message, Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    public boolean checkStoragePermission() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED) {
+                Log.v(TAG, "Permission is granted");
+                return true;
+            } else {
+
+                Log.v(TAG, "Permission is revoked");
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                return false;
+            }
+        } else { //permission is automatically granted on sdk<23 upon installation
+            Log.v(TAG, "Permission is granted");
+            return true;
+        }
     }
 
     public void PermissionGranted(int request_code) {

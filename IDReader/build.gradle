@@ -1,2 +1,2 @@
 configurations.maybeCreate("default")
-artifacts.add("default", file('bpi-idreadersdk-2_4_4_4.aar'))
+artifacts.add("default", file('bpi-idreadersdk-2_4_4_5.aar'))
