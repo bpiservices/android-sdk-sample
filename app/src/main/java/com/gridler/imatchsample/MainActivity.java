@@ -53,12 +53,7 @@ import com.regula.documentreader.api.enums.DocReaderAction;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
-import org.ejbca.cvc.CVCObject;
-import org.ejbca.cvc.CardVerifiableCertificate;
-import org.ejbca.cvc.CertificateParser;
 import org.jmrtd.Util;
-import org.jmrtd.cert.CVCPrincipal;
-import org.jmrtd.cert.CVCertificateFactorySpi;
 import org.jnbis.api.Jnbis;
 import org.json.JSONObject;
 
@@ -291,26 +286,15 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.setApduLogging(true);
 
-        String keystorePath = "terminalCertificates/";
-        ArrayList<org.jmrtd.cert.CardVerifiableCertificate> certificates = new ArrayList<>();
-        CVCPrincipal caRef = null;
-
+        File rootPath = Environment.getExternalStorageDirectory();
+        String keystorePath = "Android/data/eu.bpiservices/terminalCertificates/";
+        String issuer = "";
+        readTask.setChipAuthentication(true);
         try {
-            byte[] cvcert = readFile(keystorePath + "TEST100003.cvcert");
-            CVCObject cvcObject = CertificateParser.parseCVCObject(cvcert);
-            CardVerifiableCertificate cvc = new CardVerifiableCertificate((org.ejbca.cvc.CVCertificate) cvcObject);
-            CVCertificateFactorySpi cvcFactory = new CVCertificateFactorySpi();
-            InputStream myInputStream = new ByteArrayInputStream(cvc.getEncoded());
-            org.jmrtd.cert.CardVerifiableCertificate cert = (org.jmrtd.cert.CardVerifiableCertificate) cvcFactory.engineGenerateCertificate(myInputStream);
-            certificates.add(cert);
-
-            caRef = cert.getAuthorityReference();
+            readTask.setTerminalAuthentication(rootPath, keystorePath, issuer, this);
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        readTask.setChipAuthentication(true);
-        readTask.setTerminalAuthentication(certificates, caRef, this);
         readTask.execute();
     }
 
@@ -1034,7 +1018,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
     @Override
     public void readProgress(eu.bpiservices.idreadersdk.ReadStep step, long timestamp, String info) {
-        Log.d(TAG, "readProgress: " + step);
+        Log.d(TAG, "readProgress: " + step + ", " + info);
         displayLog("readProgress: " + step);
     }
 
