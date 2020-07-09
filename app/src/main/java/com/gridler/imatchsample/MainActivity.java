@@ -60,7 +60,6 @@ import org.json.JSONObject;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -83,7 +82,6 @@ import eu.bpiservices.idreadersdk.ReadProcess;
 import eu.bpiservices.idreadersdk.ReadResponse;
 import eu.bpiservices.idreadersdk.ReadTask;
 
-import static eu.bpiservices.idreadersdk.Utils.READ_MRTD_FILE_ALL_CODE;
 import static eu.bpiservices.idreadersdk.Utils.getBouncyCastleProvider;
 
 public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse, ReadProcess {
@@ -272,8 +270,10 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void readPassportIDReader(View view) {
         ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
-        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
         readTask.setCardService(iMatchCardService);
+        readTask.setReadDg1(true);
+        readTask.setReadDg2(true);
         readTask.setBypassPace(true);
         readTask.setApduLogging(true);
         readTask.execute();
@@ -283,29 +283,21 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      * Called when the user taps the Read Passport ID Reader NFC button
      */
     public void readPassportIDReaderNFC(View view) {
-        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
         readTask.setApduLogging(true);
+        readTask.setChipAuthentication(true);
+        readTask.setReadDg1(true);
+        readTask.setReadDg2(true);
 
         File rootPath = Environment.getExternalStorageDirectory();
         String keystorePath = "Android/data/eu.bpiservices/terminalCertificates/";
         String issuer = "";
-        readTask.setChipAuthentication(true);
         try {
             readTask.setTerminalAuthentication(rootPath, keystorePath, issuer, this);
         } catch (Exception e) {
             e.printStackTrace();
         }
         readTask.execute();
-    }
-
-    public byte[] readFile(String name) throws Exception {
-        File root = Environment.getExternalStorageDirectory();
-        File myFile = new File(root, name);
-        FileInputStream f = new FileInputStream(new File(root, name));
-        byte data[] = new byte[(int)myFile.length()];
-        f.read(data, 0, data.length);
-        f.close();
-        return data;
     }
 
     /**
