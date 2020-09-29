@@ -82,6 +82,7 @@ import eu.bpiservices.idreadersdk.ReadProcess;
 import eu.bpiservices.idreadersdk.ReadResponse;
 import eu.bpiservices.idreadersdk.ReadTask;
 
+import static eu.bpiservices.idreadersdk.Utils.READ_MRTD_FILE_ALL_CODE;
 import static eu.bpiservices.idreadersdk.Utils.getBouncyCastleProvider;
 
 public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse, ReadProcess {
@@ -95,8 +96,10 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     Button readPassportIDReaderNFCButton;
     Button scanMrzButton;
     Button scanFingerprintButton;
-    Button emulateFingerprintButton;
+    Button scanIBFingerprintButton;
     Button scanSmartCardButton;
+    boolean scanIBFingerprint;
+    boolean poweredIBFingerprint;
     CheckBox saveWsqCheckbox;
     ImageView photoImageView;
     ImageView fp1ImageView;
@@ -135,7 +138,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         readPassportIDReaderNFCButton = findViewById(R.id.readPassportIDReaderNFCButton);
         scanMrzButton = findViewById(R.id.scanMrzButton);
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
-        emulateFingerprintButton = findViewById(R.id.emulateFingerprintButton);
+        scanIBFingerprintButton = findViewById(R.id.scanIBFingerprint);
         scanSmartCardButton = findViewById(R.id.scanSmartCardButton);
         saveWsqCheckbox = findViewById(R.id.saveWsqCheckbox);
         photoImageView = findViewById(R.id.photo);
@@ -270,10 +273,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void readPassportIDReader(View view) {
         ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
-        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.setCardService(iMatchCardService);
-        readTask.setReadDg1(true);
-        readTask.setReadDg2(true);
         readTask.setBypassPace(true);
         readTask.setApduLogging(true);
         readTask.execute();
@@ -283,15 +284,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      * Called when the user taps the Read Passport ID Reader NFC button
      */
     public void readPassportIDReaderNFC(View view) {
-        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.setApduLogging(true);
-        readTask.setChipAuthentication(true);
-        readTask.setReadDg1(true);
-        readTask.setReadDg2(true);
 
         File rootPath = Environment.getExternalStorageDirectory();
         String keystorePath = "Android/data/eu.bpiservices/terminalCertificates/";
         String issuer = "";
+        readTask.setChipAuthentication(true);
         try {
             readTask.setTerminalAuthentication(rootPath, keystorePath, issuer, this);
         } catch (Exception e) {
@@ -325,6 +324,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     enrollmentParams.setExportTemplate(false);
                     enrollmentParams.setExportImage(ILVConstant.ID_COMPRESSION_WSQ, (byte) 15);
 
+                    scanIBFingerprint = false;
                     mFpReader.powerOn();
                     Thread.sleep(500);
                     mFpReader.enroll(enrollmentParams);
@@ -336,9 +336,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     }
 
     /**
-     * Called when the user taps the Emulate IB Fingerprint button
+     * Called when the user taps the Scan IB Fingerprint button
      */
-    public void emulateFingerprint(View view) {
+    public void scanIBFingerprint(View view) {
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
@@ -355,9 +355,14 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         }
                     });
 
-                    //mFpReader.powerOn(); // skip in emulator mode
-                    //Thread.sleep(500);
-                    mFpReader.enroll(ImageType.FLAT_TWO_FINGERS);
+                    if (poweredIBFingerprint) {
+                        Log.d(TAG, "FingerprintEvent debug : enrolling");
+                        mFpReader.enroll(ImageType.FLAT_TWO_FINGERS);
+                    } else {
+                        Log.d(TAG, "FingerprintEvent debug : powering on");
+                        scanIBFingerprint = true;
+                        mFpReader.powerOn(); // wait for callback from power on function
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, e.getLocalizedMessage());
                 }
@@ -381,6 +386,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         try {
             Log.d(TAG, "onFingerprintEvent method: " + method);
             Log.d(TAG, "onFingerprintEvent data: " + data);
+
+            if (method == Method.POWERON) {
+                if (scanIBFingerprint) {
+                    poweredIBFingerprint = true;
+                    mFpReader.enroll(ImageType.FLAT_TWO_FINGERS);
+                }
+            }
 
             final byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
 
@@ -424,7 +436,10 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
             }
 
             if (method == Method.FP_IMAGE) {
-                displayLog("Fingerprint data received: " + dataBytes.length);
+                displayLog("Power off and fingerprint data received: " + dataBytes.length);
+                mFpReader.powerOff();
+                poweredIBFingerprint = false;
+
                 if (saveWsqCheckbox.isChecked()) {
                     String tempfile = (String) android.text.format.DateFormat.format("yyyyMMddhhmmss", new java.util.Date());
                     BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/iMatchSample/" + tempfile + ".wsq"));
@@ -576,7 +591,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         connectButton.setEnabled(true);
         showToastInUiThread(this, "Connected to " + ImatchDevice.getInstance().GetName());
         scanFingerprintButton.setEnabled(true);
-        emulateFingerprintButton.setEnabled(true);
+        scanIBFingerprintButton.setEnabled(true);
         scanSmartCardButton.setEnabled(true);
         scanMrzButton.setEnabled(documentReaderLicensed);
         monitorStatus();
@@ -591,11 +606,12 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         readPassportNativeButton.setEnabled(false);
         readPassportIDReaderButton.setEnabled(false);
         scanFingerprintButton.setEnabled(false);
-        emulateFingerprintButton.setEnabled(false);
+        scanIBFingerprintButton.setEnabled(false);
         scanSmartCardButton.setEnabled(false);
 
         batteryText.setVisibility(View.GONE);
         connectButton.setText(R.string.button_connect);
+        poweredIBFingerprint = false;
     }
 
     private void PairBluetooth() {

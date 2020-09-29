@@ -9,7 +9,7 @@
     <string name="button_read_passport_id_reader">Read Passport - ID Reader SDK</string>
     <string name="button_read_passport_id_reader_nfc">Read Passport - ID Reader SDK NFC</string>
     <string name="button_scan_fingerprint">Scan Fingerprint</string>
-    <string name="button_emulate_fingerprint">Emulate IB Fingerprint</string>
+    <string name="button_scan_ib_fingerprint">Scan IB Fingerprint</string>
     <string name="button_scan_smart_card">Scan Smart Card</string>
     <string name="checkbox_save_wsq">Save WSQ image to file</string>
     <string name="activity_title_pairing_activity">Connect</string>
