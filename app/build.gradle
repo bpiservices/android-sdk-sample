@@ -37,8 +37,8 @@ dependencies {
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.vectordrawable:vectordrawable:1.0.0'
     implementation 'com.clj.fastble:FastBleLib:2.3.2'
-    implementation 'com.regula.documentreader.mrz:core:+@aar'
-    implementation('com.regula.documentreader:api:+@aar') {
+    implementation 'com.regula.documentreader.mrz:core:5.1.3034'
+    implementation('com.regula.documentreader:api:5.1.2465') {
         transitive = true
     }
     implementation project(':imatchsdk')
