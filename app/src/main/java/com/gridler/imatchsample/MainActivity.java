@@ -209,7 +209,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 //Initializing the reader
                 DocumentReader.Instance().initializeReader(MainActivity.this, license, new IDocumentReaderInitCompletion() {
                     @Override
-                    public void onInitCompleted(boolean success, String error) {
+                    public void onInitCompleted(boolean success, Throwable throwable) {
                         DocumentReader.Instance().customization().edit().setShowResultStatusMessages(true).apply();
                         DocumentReader.Instance().customization().edit().setShowStatusMessages(true).apply();;
                         DocumentReader.Instance().functionality().edit().setVideoCaptureMotionControl(true).apply();;
@@ -223,7 +223,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                             // Notify that the Document Reader license is not valid
                             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                             builder.setTitle(R.string.Information);
-                            builder.setMessage(R.string.InvalidDocumentReaderLicense + ": " + error);
+                            builder.setMessage(R.string.InvalidDocumentReaderLicense + ": " + throwable.getMessage());
                             builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
@@ -752,7 +752,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     private IDocumentReaderCompletion completion = new IDocumentReaderCompletion() {
         @Override
-        public void onCompleted(int action, DocumentReaderResults results, String error) {
+        public void onCompleted(int action, DocumentReaderResults results, Throwable throwable) {
             if (action == DocReaderAction.COMPLETE) {
                 if (results == null) {
                     return;
@@ -785,8 +785,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 Log.e(TAG, "DocReaderAction.CANCEL");
                 Toast.makeText(MainActivity.this, "Scanning cancelled", Toast.LENGTH_LONG).show();
             } else if (action == DocReaderAction.ERROR) {
-                Log.e(TAG, "DocReaderAction.ERROR: " + error);
-                Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show();
+                Log.e(TAG, "DocReaderAction.ERROR: " + throwable.getMessage());
+                Toast.makeText(MainActivity.this, throwable.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
     };
