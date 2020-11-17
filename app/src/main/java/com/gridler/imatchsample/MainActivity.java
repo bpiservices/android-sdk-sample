@@ -641,7 +641,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
     @Override
     public void onReceiveEvent(Method method, String data) {
-        Log.d(TAG, "received event: " + data);
+        Log.d(TAG, "received event: " + method + ": " + data);
         if (method == Method.DATETIME && data.equals("1")) {
             runOnUiThread(new Runnable() {
                 @Override
@@ -678,6 +678,14 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 Log.e(TAG, e.getMessage());
             }
         }
+        if (method.equals(Method.INFO)) {
+            String sdkFirmwareVersion = ImatchDevice.getInstance().GetSdkFirmwareVersion(this);
+            Log.d(TAG, "sdkFirmwareVersion: " + sdkFirmwareVersion);
+            if (!ImatchDevice.getInstance().GetFirmwareVersion().equals(sdkFirmwareVersion)) {
+                FirmwareUpdate firmwareUpdate = new FirmwareUpdate();
+                firmwareUpdate.showFirmwareDialog(MainActivity.this);
+            }
+        }
     }
 
     @Override
@@ -691,9 +699,23 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     @Override
     public void onConnectionChange(Boolean connected) {
         Log.d(TAG, "onConnectionChange: " + connected);
-        if (ImatchDevice.getInstance().Connected()) {
+        if (connected && ImatchDevice.getInstance().Connected()) {
             Log.i(TAG, "Connected to " + ImatchDevice.getInstance().GetName() + " MAC: " + ImatchDevice.getInstance().GetMac());
-            ImatchDevice.getInstance().SyncDate();
+
+            AsyncTask.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        ImatchDevice.getInstance().SyncDate();
+                        Thread.sleep(1024);
+                        ImatchDevice.getInstance().RequestDeviceInfo();
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e(TAG, e.getMessage());
+                    }
+                }
+            });
         } else {
             runOnUiThread(new Runnable() {
                 @Override
@@ -713,7 +735,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     @Override
     public void onError(int code, String message) {
         Log.e(TAG, "iMatch Error received. Code: " + code + " Message: " + message);
-        ImatchDevice.getInstance().Reset();
     }
 
     @Override
