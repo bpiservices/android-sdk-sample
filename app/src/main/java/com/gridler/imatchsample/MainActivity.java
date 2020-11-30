@@ -71,6 +71,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -922,7 +923,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         @Override
                         public void run() {
                             try {
-                                X509Certificate cert = MrtdUtils.getDocSigningCertificate(certBytes);
+                                CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+                                InputStream inputStream = new ByteArrayInputStream(certBytes);
+                                X509Certificate cert = (X509Certificate)certFactory.generateCertificate(inputStream);
                                 displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
                                 checkCertificateChain(cert);
                             } catch (Exception e) {
