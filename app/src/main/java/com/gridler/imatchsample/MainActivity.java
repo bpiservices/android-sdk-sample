@@ -71,7 +71,6 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -885,7 +884,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 publishProgress();
 
                 // Read DG2 (passport photo)
-                String dg2Result = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG2");
+                params = "DG2" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                String dg2Result = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params);
                 Log.d(TAG, "DG2 Result: " + dg2Result);
                 final byte[] dg2Bytes = Base64.decode(dg2Result, Base64.NO_WRAP);
 
@@ -916,16 +916,15 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 try {
                     // Read SOD (document security object)
-                    final byte[] certBytes = Base64.decode(ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "SOD"), Base64.NO_WRAP);
+                    params = "SOD" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                    final byte[] certBytes = Base64.decode(ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params), Base64.NO_WRAP);
                     displayLog("Read SecurityData.");
                     publishProgress();
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             try {
-                                CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-                                InputStream inputStream = new ByteArrayInputStream(certBytes);
-                                X509Certificate cert = (X509Certificate)certFactory.generateCertificate(inputStream);
+                                X509Certificate cert = MrtdUtils.getDocSigningCertificate(certBytes);
                                 displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
                                 checkCertificateChain(cert);
                             } catch (Exception e) {
@@ -940,7 +939,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 }
 
                 // Read DG1
-                String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, "DG1");
+                params = "DG1" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params);
                 displayLog("Read DG1.");
                 publishProgress();
 
