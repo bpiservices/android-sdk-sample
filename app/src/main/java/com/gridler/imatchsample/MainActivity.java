@@ -273,10 +273,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void readPassportIDReader(View view) {
         ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
-        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
         readTask.setCardService(iMatchCardService);
-        readTask.setBypassPace(true);
-        readTask.setApduLogging(true);
+        readTask.setReadDg1(true);
         readTask.execute();
     }
 
@@ -394,14 +393,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 }
             }
 
-            final byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
-
             if (method == Method.FP_QUALITY) {
+                final byte[] qualityData = Base64.decode(data, Base64.NO_WRAP);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        FingerQuality fp1Quality = FingerQuality.values()[dataBytes[0]];
-                        FingerQuality fp2Quality = FingerQuality.values()[dataBytes[1]];
+                        FingerQuality fp1Quality = FingerQuality.values()[qualityData[0]];
+                        FingerQuality fp2Quality = FingerQuality.values()[qualityData[1]];
 
                         Log.e(TAG, "fp1Quality: " + fp1Quality);
                         Log.e(TAG, "fp2Quality: " + fp2Quality);
@@ -436,6 +434,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
             }
 
             if (method == Method.FP_IMAGE) {
+                final byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
                 displayLog("Power off and fingerprint data received: " + dataBytes.length);
                 mFpReader.powerOff();
                 poweredIBFingerprint = false;
@@ -474,6 +473,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
             }
 
             if (method == Method.NOTIFY) {
+                byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
                 switch (dataBytes[0]) {
                     case ILVConstant.ILV_ENROLL:  // Enroll result
                         ImatchFPEnrollmentResult enroll_result = new ImatchFPEnrollmentResult(dataBytes);
@@ -942,6 +942,11 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 params = "DG1" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
                 String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params);
                 displayLog("Read DG1.");
+                publishProgress();
+
+                // Power off
+                String powerOffResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.POWEROFF, params);
+                Log.d(TAG, "Power off: " + powerOffResult);
                 publishProgress();
 
                 readingChip = false;
