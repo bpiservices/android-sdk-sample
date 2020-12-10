@@ -594,7 +594,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         scanIBFingerprintButton.setEnabled(true);
         scanSmartCardButton.setEnabled(true);
         scanMrzButton.setEnabled(documentReaderLicensed);
-        monitorStatus();
         connectButton.setText(R.string.button_disconnect);
     }
 
@@ -1057,24 +1056,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     public void readProgress(eu.bpiservices.idreadersdk.ReadStep step, long timestamp, String info) {
         Log.d(TAG, "readProgress: " + step + ", " + info);
         displayLog("readProgress: " + step);
-    }
-
-    /**
-     * Monitors the status of the connected iMatch every 10 seconds
-     */
-    private void monitorStatus() {
-        Thread task = new Thread() {
-            @Override
-            public void run() {
-                while (ImatchDevice.getInstance().Connected() && activityOnTop && !readingChip) {
-                    ImatchDevice.getInstance().RequestStatus();
-                    try {
-                        sleep(30000);
-                    } catch (InterruptedException ignored) {}
-                }
-            }
-        };
-        task.start();
     }
 
     private void displayLog(final String message) {
