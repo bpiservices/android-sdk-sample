@@ -54,6 +54,8 @@ import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
 import org.jmrtd.Util;
+import org.jmrtd.lds.icao.DG1File;
+import org.jmrtd.lds.icao.MRZInfo;
 import org.jnbis.api.Jnbis;
 import org.json.JSONObject;
 
@@ -940,8 +942,14 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 // Read DG1
                 params = "DG1" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
                 String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params);
-                displayLog("Read DG1.");
                 publishProgress();
+
+                byte[] dg1Bytes = Base64.decode(dg1Mrz, Base64.NO_WRAP);
+                InputStream dg1InputStream = new ByteArrayInputStream(dg1Bytes);
+                DG1File dg1File = new DG1File(dg1InputStream);
+                MRZInfo mrzInfo = dg1File.getMRZInfo();
+                displayLog("MRZInfo: " + mrzInfo);
+                Log.d(TAG, "MRZInfo: " + mrzInfo);
 
                 // Power off
                 String powerOffResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.POWEROFF, params);
@@ -951,6 +959,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 readingChip = false;
                 return null;
             } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
                 return e;
             }
         }
