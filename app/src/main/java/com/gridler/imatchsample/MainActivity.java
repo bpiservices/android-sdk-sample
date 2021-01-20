@@ -50,6 +50,7 @@ import com.regula.documentreader.api.DocumentReader;
 import com.regula.documentreader.api.completions.IDocumentReaderCompletion;
 import com.regula.documentreader.api.completions.IDocumentReaderInitCompletion;
 import com.regula.documentreader.api.enums.DocReaderAction;
+import com.regula.documentreader.api.errors.DocumentReaderException;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
@@ -211,7 +212,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 //Initializing the reader
                 DocumentReader.Instance().initializeReader(MainActivity.this, license, new IDocumentReaderInitCompletion() {
                     @Override
-                    public void onInitCompleted(boolean success, Throwable throwable) {
+                    public void onInitCompleted(boolean success, DocumentReaderException documentReaderException) {
                         DocumentReader.Instance().customization().edit().setShowResultStatusMessages(true).apply();
                         DocumentReader.Instance().customization().edit().setShowStatusMessages(true).apply();;
                         DocumentReader.Instance().functionality().edit().setVideoCaptureMotionControl(true).apply();;
@@ -225,7 +226,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                             // Notify that the Document Reader license is not valid
                             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
                             builder.setTitle(R.string.Information);
-                            builder.setMessage(R.string.InvalidDocumentReaderLicense + ": " + throwable.getMessage());
+                            builder.setMessage(R.string.InvalidDocumentReaderLicense + ": " + documentReaderException.getMessage());
                             builder.setPositiveButton(R.string.strOK, new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
@@ -774,7 +775,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     private IDocumentReaderCompletion completion = new IDocumentReaderCompletion() {
         @Override
-        public void onCompleted(int action, DocumentReaderResults results, Throwable throwable) {
+        public void onCompleted(int action, DocumentReaderResults results, DocumentReaderException documentReaderException) {
             if (action == DocReaderAction.COMPLETE) {
                 if (results == null) {
                     return;
@@ -807,8 +808,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 Log.e(TAG, "DocReaderAction.CANCEL");
                 Toast.makeText(MainActivity.this, "Scanning cancelled", Toast.LENGTH_LONG).show();
             } else if (action == DocReaderAction.ERROR) {
-                Log.e(TAG, "DocReaderAction.ERROR: " + throwable.getMessage());
-                Toast.makeText(MainActivity.this, throwable.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e(TAG, "DocReaderAction.ERROR: " + documentReaderException.getMessage());
+                Toast.makeText(MainActivity.this, documentReaderException.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
     };
