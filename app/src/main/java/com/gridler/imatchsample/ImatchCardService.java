@@ -73,6 +73,10 @@ public class ImatchCardService extends CardService {
      */
     public ResponseAPDU transmit(CommandAPDU ourCommandAPDU) throws CardServiceException {
         try {
+            if (state == SESSION_STOPPED_STATE) {
+                throw new CardServiceException("No session started");
+            }
+
             byte[] responseBytes = imatchDevice.SendBytesWithResponse(ourCommandAPDU.getBytes());
             if (responseBytes == null || responseBytes.length < 2) {
                 throw new CardServiceException("Failed response");
@@ -113,4 +117,3 @@ public class ImatchCardService extends CardService {
         return false;
     }
 }
-
