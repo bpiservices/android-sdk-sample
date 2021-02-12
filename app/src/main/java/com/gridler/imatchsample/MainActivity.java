@@ -14,6 +14,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -88,6 +89,8 @@ import eu.bpiservices.idreadersdk.ReadTask;
 import static eu.bpiservices.idreadersdk.Utils.READ_MRTD_FILE_ALL_CODE;
 import static eu.bpiservices.idreadersdk.Utils.getBouncyCastleProvider;
 
+
+
 public class MainActivity extends ListActivity implements ImatchManagerListener, ImatchListener, ImatchFingerPrintListener, ImatchSmartCardListener, PermissionResultCallback, ReadResponse, ReadProcess {
     static String TAG = MainActivity.class.getSimpleName();
     ImatchFingerprintReader mFpReader;
@@ -118,6 +121,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     boolean activityOnTop = true;
     boolean readingChip = false;
 
+    public static String messageForAlert;
+    private static AlertDialog.Builder alertDialog;
+    private static  AlertDialog activeDialog;;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -163,6 +169,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         CertValidator.getInstance().Init(this);
 
         checkStoragePermission();
+
+        alertDialog = new AlertDialog.Builder(this).setTitle("Progress").setCancelable(true).setPositiveButton("OK", null);
     }
 
     @Override
@@ -275,6 +283,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      * Called when the user taps the Read Passport ID Reader button
      */
     public void readPassportIDReader(View view) {
+        //reset message for alertdialog status updates
+        messageForAlert = "";
         ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
         ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
         readTask.setCardService(iMatchCardService);
@@ -286,6 +296,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      * Called when the user taps the Read Passport ID Reader NFC button
      */
     public void readPassportIDReaderNFC(View view) {
+        //reset message for alertdialog status updates
+        messageForAlert = "";
         ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, READ_MRTD_FILE_ALL_CODE, this);
         readTask.setApduLogging(true);
 
@@ -298,6 +310,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         } catch (Exception e) {
             e.printStackTrace();
         }
+        displayLog("Present document to the mobile NFC area.");
         readTask.execute();
     }
 
@@ -438,7 +451,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
             if (method == Method.FP_IMAGE) {
                 final byte[] dataBytes = Base64.decode(data, Base64.NO_WRAP);
-                displayLog("Power off and fingerprint data received: " + dataBytes.length);
+                showToastInUiThread(this, "Power off and fingerprint data received: " + dataBytes.length);
                 mFpReader.powerOff();
                 poweredIBFingerprint = false;
 
@@ -865,6 +878,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         @Override
         protected Exception doInBackground(Void... voids) {
             try {
+                //reset message in alertdialog
+                messageForAlert = "";
                 displayLog("Start reading chip");
                 readingChip = true;
 
@@ -1028,7 +1043,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                     Boolean dg1Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG1);
                     Log.d(TAG, "DG1 hash matches: " + dg1Valid);
 
-                    Log.d(TAG, "DG2 face biometric encodings: " + readResult.DG2.getFaceInfos().size());
+                    if (readResult.DG2 != null) {
+                        Log.d(TAG, "DG2 face biometric encodings: " + readResult.DG2.getFaceInfos().size());
+                    }
 
                     Boolean dg2Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG2);
                     Log.d(TAG, "DG2 hash matches: " + dg2Valid);
@@ -1071,7 +1088,35 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     private void displayLog(final String message) {
         if (message == null || message.isEmpty()) return;
         Log.d(TAG, message);
-        showToastInUiThread(this, message);
+        showAlertOnUiThread(this, message);
+    }
+
+
+    public static void showAlertOnUiThread(final Context ctx, final String message) {
+        Handler mainThread = new Handler(Looper.getMainLooper());
+        if (messageForAlert != null && !messageForAlert.equals("")) {
+            messageForAlert = messageForAlert + "\n-----------\n" + message;
+        } else {
+            messageForAlert = message;
+
+        }
+
+
+        mainThread.post(new Runnable() {
+            @Override
+            public void run() {
+                if (activeDialog != null && activeDialog.isShowing()) {
+                    activeDialog.setMessage(messageForAlert);
+                } else {
+                    activeDialog = alertDialog.setMessage(messageForAlert).show();
+                }
+                if (message.length() > 25) {
+                    activeDialog.setTitle(message.substring(0, 25));
+                } else {
+                    activeDialog.setTitle(message);
+                }
+            }
+        });
     }
 
     public static void showToastInUiThread(final Context ctx, final String message) {
