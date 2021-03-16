@@ -999,9 +999,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 certCheck = CertValidator.getInstance().CheckCertificateChain(cert.getEncoded());
                 displayLog("Valid certificate - CA name: " + certCheck.getTrustAnchor().toString());
             }
-        } catch (CertificateEncodingException e) {
-            displayLog("Certificate error: " + e.getMessage());
-        } catch (CertPathValidatorException e) {
+        } catch (Exception e) {
             displayLog("Certificate error: " + e.getMessage());
         }
     }
@@ -1040,20 +1038,20 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                     Log.d(TAG, "DG1 MRZ Info: " + readResult.DG1.getMRZInfo());
 
-                    Boolean dg1Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG1);
+                    Boolean dg1Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG1, readResult.DG1Bytes);
                     Log.d(TAG, "DG1 hash matches: " + dg1Valid);
 
                     if (readResult.DG2 != null) {
                         Log.d(TAG, "DG2 face biometric encodings: " + readResult.DG2.getFaceInfos().size());
                     }
 
-                    Boolean dg2Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG2);
+                    Boolean dg2Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG2, readResult.DG2Bytes);
                     Log.d(TAG, "DG2 hash matches: " + dg2Valid);
 
                     if (readResult.DG3 != null ) {
                         Log.d(TAG, "DG3 face biometric encodings: " + readResult.DG3.getFingerInfos().size());
 
-                        Boolean dg3Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG3);
+                        Boolean dg3Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG3, readResult.DG3Bytes);
                         Log.d(TAG, "DG3 hash matches: " + dg3Valid);
                     }
 
