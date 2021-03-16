@@ -105,7 +105,7 @@ public class ImatchCardService extends CardService {
     public void close() {
         try {
             if (state != SESSION_STOPPED_STATE) {
-                imatchDevice.SendBytes(Utils.hexStringToByteArray("02DEAD"));
+                imatchDevice.SendBytes(Utils.hexStringToByteArray("0002DEAD"));
                 state = SESSION_STOPPED_STATE;
             }
         } catch (Exception ignored) {
