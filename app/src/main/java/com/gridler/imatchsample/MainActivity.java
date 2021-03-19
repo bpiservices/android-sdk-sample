@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
@@ -14,7 +15,6 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Bundle;
-import android.text.method.ScrollingMovementMethod;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -104,13 +104,20 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     Button scanFingerprintButton;
     Button scanIBFingerprintButton;
     Button scanSmartCardButton;
+    Button testMtuButton;
     boolean scanIBFingerprint;
     boolean poweredIBFingerprint;
     CheckBox saveWsqCheckbox;
+    CheckBox forceMtuCheckbox;
     ImageView photoImageView;
     ImageView fp1ImageView;
     ImageView fp2ImageView;
     TextView batteryText;
+    TextView imatchVersionText;
+    TextView idReaderSdkVersionText;
+    TextView sampleVersionText;
+    TextView versionImatchSdk;
+    TextView versionMobile;
     boolean documentReaderLicensed;
     String vizMrz;
     LeDeviceListAdapter leDeviceListAdapter;
@@ -141,19 +148,41 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         permissionUtils.check_permission(permissions,"To function correctly this application needs the following permissions",1);
 
         batteryText = findViewById(R.id.textBatteryPercentage);
+        imatchVersionText = findViewById(R.id.versionImatch);
+        idReaderSdkVersionText = findViewById(R.id.versionIdReaderSdk);
+        sampleVersionText = findViewById(R.id.versionSampleApp);
+        versionImatchSdk = findViewById(R.id.versionImatchSdk);
+        batteryText = findViewById(R.id.textBatteryPercentage);
         connectButton = findViewById(R.id.connectButton);
         readPassportNativeButton = findViewById(R.id.readPassportNativeButton);
         readPassportIDReaderButton = findViewById(R.id.readPassportIDReaderButton);
         readPassportIDReaderNFCButton = findViewById(R.id.readPassportIDReaderNFCButton);
         scanMrzButton = findViewById(R.id.scanMrzButton);
+        testMtuButton = findViewById(R.id.TestMtuButton);
         scanFingerprintButton = findViewById(R.id.scanFingerprintButton);
         scanIBFingerprintButton = findViewById(R.id.scanIBFingerprint);
         scanSmartCardButton = findViewById(R.id.scanSmartCardButton);
         saveWsqCheckbox = findViewById(R.id.saveWsqCheckbox);
+        forceMtuCheckbox = findViewById(R.id.forceMtuMax);
         photoImageView = findViewById(R.id.photo);
         fp1ImageView = findViewById(R.id.fp1);
         fp2ImageView = findViewById(R.id.fp2);
         progressBarHolder = findViewById(R.id.progressBarHolder);
+        versionMobile = findViewById(R.id.versionMobile);
+        versionMobile.setText(Build.MANUFACTURER + Build.MODEL);
+        // version
+        try {
+            PackageInfo pInfo = this.getPackageManager().getPackageInfo(getPackageName(), 0);
+            String versionNameImatchSdk = com.gridler.imatchsdk.BuildConfig.VERSION_NAME;
+            String versionNameIdReaderSdk = eu.bpiservices.idreadersdk.BuildConfig.VERSION_NAME;
+            //PackageInfo pInfo = this.getPackageManager().getPackageInfo(getPackageName(), 0);
+            sampleVersionText.setText(pInfo.versionName);
+            versionImatchSdk.setText(versionNameImatchSdk);
+            idReaderSdkVersionText.setText(versionNameIdReaderSdk);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
 
         // Initializes list view adapter
         leDeviceListAdapter = new LeDeviceListAdapter(MainActivity.this.getLayoutInflater());
@@ -270,6 +299,31 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
     public void scanMrz(View view) {
         // Launch OCR scanner
         DocumentReader.Instance().showScanner(this, completion);
+    }
+
+    public void testMtu(View view) {
+        //reset message for alertdialog status updates
+        messageForAlert = "";
+        ImatchCardService iMatchCardService = new ImatchCardService(ImatchDevice.getInstance());
+        ReadTask readTask = new ReadTask(MainActivity.this, vizMrz, this);
+        readTask.setCardService(iMatchCardService);
+        readTask.setApduLogging(true);
+        readTask.setDataLogging(true);
+
+        readTask.setCertOverride(false);
+        // readTask.setReadCvca(true);
+        readTask.setReadSod(true);
+        readTask.setReadDg1(true);
+        readTask.setReadDg2(true);
+        readTask.setReadDg3(false);
+        readTask.setBypassPace(true);
+        readTask.setActiveAuthentication(true);
+        readTask.setChipAuthentication(true);
+
+        ImatchDevice.getInstance().SetForceMtu(forceMtuCheckbox.isChecked());
+
+        readTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
     }
 
     /**
@@ -695,6 +749,13 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         }
         if (method.equals(Method.INFO)) {
             String sdkFirmwareVersion = ImatchDevice.getInstance().GetSdkFirmwareVersion(this);
+            final String sdkVersion = sdkFirmwareVersion;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    imatchVersionText.setText(sdkVersion);
+                }
+            });
             Log.d(TAG, "sdkFirmwareVersion: " + sdkFirmwareVersion);
             if (!ImatchDevice.getInstance().GetFirmwareVersion().equals(sdkFirmwareVersion)) {
                 FirmwareUpdate firmwareUpdate = new FirmwareUpdate();
@@ -814,6 +875,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                             readPassportNativeButton.setEnabled(true);
                             readPassportIDReaderButton.setEnabled(true);
                             readPassportIDReaderNFCButton.setEnabled(true);
+                            testMtuButton.setEnabled(true);
                             break;
                     }
                 }
@@ -999,9 +1061,22 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 certCheck = CertValidator.getInstance().CheckCertificateChain(cert.getEncoded());
                 displayLog("Valid certificate - CA name: " + certCheck.getTrustAnchor().toString());
             }
-        } catch (Exception e) {
+        } catch (CertificateEncodingException e) {
             displayLog("Certificate error: " + e.getMessage());
+        } catch (CertPathValidatorException e) {
+            displayLog("Certificate error: " + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    private void mtuTestSetMax() {
+
+        int mtuMax = ImatchDevice.getInstance().writeLengthMax;
+        if (mtuMax <= 20) {
+            forceMtuCheckbox.setVisibility(View.VISIBLE);
+        }
+        testMtuButton.setText("TEST MTU - MAX MEASURED MTU = " + mtuMax);
     }
 
     @Override
@@ -1011,6 +1086,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
             public void run() {
                 Log.d(TAG, "ResultCode: " + readResult.ResultCode);
 
+                mtuTestSetMax();
                 if (readResult.Cancelled) {
                     return;
                 }
@@ -1036,37 +1112,19 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         Log.d(TAG, "DG " + key + " hash: " + Utils.bytesToHex(dataGroupHashes.get(key)));
                     }
 
-                    Log.d(TAG, "DG1 MRZ Info: " + readResult.DG1.getMRZInfo());
 
-                    Boolean dg1Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG1, readResult.DG1Bytes);
-                    Log.d(TAG, "DG1 hash matches: " + dg1Valid);
 
-                    if (readResult.DG2 != null) {
-                        Log.d(TAG, "DG2 face biometric encodings: " + readResult.DG2.getFaceInfos().size());
-                    }
-
-                    Boolean dg2Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG2, readResult.DG2Bytes);
-                    Log.d(TAG, "DG2 hash matches: " + dg2Valid);
-
-                    if (readResult.DG3 != null ) {
-                        Log.d(TAG, "DG3 face biometric encodings: " + readResult.DG3.getFingerInfos().size());
-
-                        Boolean dg3Valid = MrtdUtils.validateHash(readResult.SOD, readResult.DG3, readResult.DG3Bytes);
-                        Log.d(TAG, "DG3 hash matches: " + dg3Valid);
-                    }
-
+                    X509Certificate cert = MrtdUtils.getDocSigningCertificate(readResult.SOD.getEncoded());
+                    displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
+                    checkCertificateChain(cert);
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             photoImageView.setVisibility(View.VISIBLE);
                             photoImageView.setImageBitmap(readResult.PhotoBitmap);
+                            displayLog("COMPLETED");
                         }
                     });
-
-                    X509Certificate cert = MrtdUtils.getDocSigningCertificate(readResult.SOD.getEncoded());
-                    displayLog("Issued by " + cert.getIssuerDN().getName() + ", expires " + cert.getNotAfter().toString());
-                    checkCertificateChain(cert);
-
                     //MrtdUtils.CRLCheck(cert, x509CRL);
 
                 } catch (Exception e) {

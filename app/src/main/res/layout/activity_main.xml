@@ -6,189 +6,297 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <ListView
-        android:id="@android:id/list"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone" />
+        tools:layout_editor_absoluteX="101dp"
+        tools:layout_editor_absoluteY="0dp">
 
-    <Button
-        android:id="@+id/connectButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:onClick="connectDevice"
-        android:text="@string/button_connect"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <Button
+            android:id="@+id/readPassportIDReaderButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="readPassportIDReader"
+            android:text="@string/button_read_passport_id_reader"
+            app:layout_constraintTop_toBottomOf="@+id/readPassportNativeButton"
+            tools:layout_editor_absoluteX="8dp" />
 
-    <Button
-        android:id="@+id/scanMrzButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="scanMrz"
-        android:text="@string/button_scan_mrz"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/connectButton" />
-
-    <Button
-        android:id="@+id/readPassportNativeButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="readPassportNative"
-        android:text="@string/button_read_passport_native"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scanMrzButton" />
-
-    <Button
-        android:id="@+id/readPassportIDReaderButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="readPassportIDReader"
-        android:text="@string/button_read_passport_id_reader"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/readPassportNativeButton" />
-
-    <Button
-        android:id="@+id/readPassportIDReaderNFCButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="readPassportIDReaderNFC"
-        android:text="@string/button_read_passport_id_reader_nfc"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/readPassportIDReaderButton" />
-
-    <Button
-        android:id="@+id/scanFingerprintButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="scanFingerprint"
-        android:text="@string/button_scan_fingerprint"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/readPassportIDReaderNFCButton" />
-
-    <Button
-        android:id="@+id/scanIBFingerprint"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="scanIBFingerprint"
-        android:text="@string/button_scan_ib_fingerprint"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scanFingerprintButton" />
-
-    <Button
-        android:id="@+id/scanSmartCardButton"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:enabled="false"
-        android:onClick="scanSmartCard"
-        android:text="@string/button_scan_smart_card"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scanIBFingerprint" />
-
-    <CheckBox
-        android:id="@+id/saveWsqCheckbox"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:text="@string/checkbox_save_wsq"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scanSmartCardButton" />
-
-    <ImageView
-        android:id="@+id/fp1"
-        android:layout_width="0dp"
-        android:layout_height="80dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
-
-    <ImageView
-        android:id="@+id/fp2"
-        android:layout_width="0dp"
-        android:layout_height="80dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
-
-    <ImageView
-        android:id="@+id/photo"
-        android:visibility="gone"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_margin = "32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/fp1" />
-
-    <TextView
-        android:id="@+id/textBatteryPercentage"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:paddingLeft="5dp"
-        android:text="0%"
-        android:visibility="visible"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="@+id/photo" />
-
-    <FrameLayout
-        android:id="@+id/progressBarHolder"
-        android:animateLayoutChanges="true"
-        android:visibility="gone"
-        android:alpha="0.8"
-        android:background="#000000"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <ProgressBar
-            style="?android:attr/progressBarStyleLarge"
+        <CheckBox
+            android:id="@+id/saveWsqCheckbox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:indeterminate="true"
-            android:layout_gravity="center" />
-    </FrameLayout>
+            android:text="@string/checkbox_save_wsq"
+            app:layout_constraintTop_toBottomOf="@+id/TestMtuButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <CheckBox
+            android:id="@+id/forceMtuMax"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingRight="5dp"
+            android:text="Force MTU Max"
+            android:visibility="invisible"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/TestMtuButton" />
+
+        <Button
+            android:id="@+id/connectButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:onClick="connectDevice"
+            android:text="@string/button_connect"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <Button
+            android:id="@+id/TestMtuButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="testMtu"
+            android:text="TEST MTU"
+            app:layout_constraintTop_toBottomOf="@+id/scanSmartCardButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <TextView
+            android:id="@+id/textBatteryPercentagelabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="Battery level:"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionImatchLabel" />
+
+        <TextView
+            android:id="@+id/versionSampleLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="Version Sample app:"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionImatchSdkLabel" />
+
+        <TextView
+            android:id="@+id/versionImatchSdk"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="unknown"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionMobile"
+            app:layout_constraintStart_toEndOf="@+id/versionImatchSdkLabel" />
+
+        <TextView
+            android:id="@+id/versionMobile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="unknown"
+            android:visibility="visible"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/verionMobileLabel" />
+
+        <TextView
+            android:id="@+id/versionImatchLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="Version Imatch:"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionIdReaderSdkLabel" />
+
+        <Button
+            android:id="@+id/readPassportIDReaderNFCButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="readPassportIDReaderNFC"
+            android:text="@string/button_read_passport_id_reader_nfc"
+            app:layout_constraintTop_toBottomOf="@+id/readPassportIDReaderButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <ImageView
+            android:id="@+id/photo"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/textBatteryPercentage"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
+
+        <Button
+            android:id="@+id/scanFingerprintButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="scanFingerprint"
+            android:text="@string/button_scan_fingerprint"
+            app:layout_constraintTop_toBottomOf="@+id/readPassportIDReaderNFCButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <ImageView
+            android:id="@+id/fp1"
+            android:layout_width="wrap_content"
+            android:layout_height="100dp"
+            app:layout_constraintBottom_toTopOf="@+id/textBatteryPercentage"
+            app:layout_constraintEnd_toStartOf="@+id/photo"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox"
+            app:layout_constraintVertical_bias="0.5" />
+
+        <TextView
+            android:id="@+id/versionIdReaderSdkLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="Version Android IDReaderSDK:"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionSampleLabel" />
+
+        <Button
+            android:id="@+id/scanMrzButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="scanMrz"
+            android:text="@string/button_scan_mrz"
+            app:layout_constraintTop_toBottomOf="@+id/connectButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <ImageView
+            android:id="@+id/fp2"
+            android:layout_width="wrap_content"
+            android:layout_height="100dp"
+            app:layout_constraintBottom_toTopOf="@+id/textBatteryPercentage"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/photo"
+            app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox" />
+
+        <TextView
+            android:id="@+id/versionImatchSdkLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="Version Android imatch SDK:"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/verionMobileLabel" />
+
+        <TextView
+            android:id="@+id/verionMobileLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="Mobile model:"
+            android:visibility="visible"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <TextView
+            android:id="@+id/versionIdReaderSdk"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="unknown"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionSampleApp"
+            app:layout_constraintStart_toEndOf="@+id/versionIdReaderSdkLabel" />
+
+        <Button
+            android:id="@+id/scanSmartCardButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="scanSmartCard"
+            android:text="@string/button_scan_smart_card"
+            app:layout_constraintTop_toBottomOf="@+id/scanIBFingerprint"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <ListView
+            android:id="@android:id/list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textBatteryPercentage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:paddingLeft="5dp"
+            android:text="0%"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionImatch"
+            app:layout_constraintStart_toEndOf="@+id/textBatteryPercentagelabel" />
+
+        <Button
+            android:id="@+id/scanIBFingerprint"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="scanIBFingerprint"
+            android:text="@string/button_scan_ib_fingerprint"
+            app:layout_constraintTop_toBottomOf="@+id/scanFingerprintButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <Button
+            android:id="@+id/readPassportNativeButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="readPassportNative"
+            android:text="@string/button_read_passport_native"
+            app:layout_constraintTop_toBottomOf="@+id/scanMrzButton"
+            tools:layout_editor_absoluteX="8dp" />
+
+        <FrameLayout
+            android:id="@+id/progressBarHolder"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:alpha="0.8"
+            android:animateLayoutChanges="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/textBatteryPercentage"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/saveWsqCheckbox">
+
+            <ProgressBar
+                style="?android:attr/progressBarStyleLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:indeterminate="false" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/versionImatch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="unknown"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionIdReaderSdk"
+            app:layout_constraintStart_toEndOf="@+id/versionImatchLabel"
+            tools:text="unknown" />
+
+        <TextView
+            android:id="@+id/versionSampleApp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            android:text="unknown"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="@+id/versionImatchSdk"
+            app:layout_constraintStart_toEndOf="@+id/versionSampleLabel" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_begin="20dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

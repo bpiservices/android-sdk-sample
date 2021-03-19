@@ -41,7 +41,7 @@ public class FirmwareUpdate implements FirmwareUpdateResponse {
             }
         };
 
-        String message = "A new version of the firmware is available for the device. Update now?";
+        String message = "A different version of the firmware is available compared to what is on the iMatch. Update now?";
         message += "\r\n" + "Installed: " + installedFirmwareVersion;
         message += "\r\n" + "Available: " + sdkFirmwareVersion;
 
