@@ -46,6 +46,7 @@ public class ImatchCardService extends CardService {
         try {
             if (state == SESSION_STARTED_STATE) {
                 Log.d(TAG, "isOpen already open");
+
                 return true;
             }
             String powerOnResult = imatchDevice.SendWithResponse(Device.NfcReader, Method.POWERONRAW, "");
@@ -91,6 +92,24 @@ public class ImatchCardService extends CardService {
         }
     }
 
+    public ResponseAPDU transmit(byte[] command) throws CardServiceException {
+        try {
+            if (state == SESSION_STOPPED_STATE) {
+                throw new CardServiceException("No session started");
+            }
+
+            byte[] responseBytes = imatchDevice.SendBytesWithResponse(command);
+            if (responseBytes == null || responseBytes.length < 2) {
+                throw new CardServiceException("Failed response");
+            }
+
+            ResponseAPDU ourResponseAPDU = new ResponseAPDU(responseBytes);
+            return ourResponseAPDU;
+        } catch (Exception e) {
+            throw new CardServiceException(e.getMessage());
+        }
+    }
+
     public byte[] getATR() {
         return null; // FIXME
     }
@@ -104,6 +123,7 @@ public class ImatchCardService extends CardService {
      */
     public void close() {
         try {
+
             if (state != SESSION_STOPPED_STATE) {
                 imatchDevice.SendBytes(Utils.hexStringToByteArray("0002DEAD"));
                 state = SESSION_STOPPED_STATE;
@@ -117,3 +137,4 @@ public class ImatchCardService extends CardService {
         return false;
     }
 }
+
