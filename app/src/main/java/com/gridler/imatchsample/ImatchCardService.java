@@ -50,14 +50,15 @@ public class ImatchCardService extends CardService {
                 return true;
             }
             String powerOnResult = imatchDevice.SendWithResponse(Device.NfcReader, Method.POWERONRAW, "");
-            if ("1".equals(powerOnResult)) {
-                Log.d(TAG, "isOpen sent power on");
-                state = SESSION_STARTED_STATE;
-                return true;
+            if ("0".equals(powerOnResult)) {
+                Log.d(TAG, "isOpen power on failed");
+                state = SESSION_STOPPED_STATE;
+                return false;
             }
-            Log.d(TAG, "isOpen power on failed");
-            state = SESSION_STOPPED_STATE;
-            return false;
+
+            Log.d(TAG, "isOpen sent power on: " + powerOnResult);
+            state = SESSION_STARTED_STATE;
+            return true;
         } catch (Exception e) {
             Log.e(TAG, "Power on failed: " + e.getMessage());
             e.printStackTrace();
