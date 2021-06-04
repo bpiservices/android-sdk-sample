@@ -1,2 +1,2 @@
 configurations.maybeCreate("default")
-artifacts.add("default", file('imatchsdk-1.2.0.aar'))
+artifacts.add("default", file('imatchsdk-1.2.4.aar'))
