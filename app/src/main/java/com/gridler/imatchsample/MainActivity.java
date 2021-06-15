@@ -310,8 +310,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         readTask.setApduLogging(true);
         readTask.setDataLogging(true);
 
-        readTask.setCertOverride(false);
-        // readTask.setReadCvca(true);
         readTask.setReadSod(true);
         readTask.setReadDg1(true);
         readTask.setReadDg2(true);
@@ -783,8 +781,6 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 public void run() {
                     try {
                         ImatchDevice.getInstance().SyncDate();
-                        Thread.sleep(1024);
-                        ImatchDevice.getInstance().RequestDeviceInfo();
                     }
                     catch (Exception e)
                     {
