@@ -51,6 +51,7 @@ import com.regula.documentreader.api.DocumentReader;
 import com.regula.documentreader.api.completions.IDocumentReaderCompletion;
 import com.regula.documentreader.api.completions.IDocumentReaderInitCompletion;
 import com.regula.documentreader.api.enums.DocReaderAction;
+import com.regula.documentreader.api.enums.Scenario;
 import com.regula.documentreader.api.errors.DocumentReaderException;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
@@ -78,6 +79,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 import eu.bpiservices.idreadersdk.CertValidator;
@@ -257,7 +259,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                         documentReaderLicensed = success;
 
                         if (documentReaderLicensed) {
-                            DocumentReader.Instance().processParams().scenario = "Mrz";
+                            DocumentReader.Instance().processParams().scenario = Scenario.SCENARIO_MRZ;
                         }
                         else {
                             // Notify that the Document Reader license is not valid

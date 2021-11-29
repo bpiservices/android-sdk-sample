@@ -9,7 +9,7 @@
     <string name="button_read_passport_id_reader">NFC iMatch: ID Reader SDK</string>
     <string name="button_read_passport_id_reader_nfc">NFC Mobile: ID Reader SDK</string>
     <string name="button_scan_fingerprint">Scan Fingerprint (iMatch 3)</string>
-    <string name="button_scan_ib_fingerprint">Scan IB Fingerprint (iMatch 45)</string>
+    <string name="button_scan_ib_fingerprint">Scan IB Fingerprint (iMatch 45/50)</string>
     <string name="button_scan_smart_card">Scan Smart Card</string>
     <string name="checkbox_save_wsq">Save WSQ image to file</string>
     <string name="activity_title_pairing_activity">Connect</string>

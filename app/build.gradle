@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 30
     defaultConfig {
         applicationId "com.gridler.imatchsample"
         minSdkVersion 24
-        targetSdkVersion 27
-        versionCode 11
-        versionName "1.1"
+        targetSdkVersion 30
+        versionCode 12
+        versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -20,6 +20,10 @@ android {
     buildToolsVersion '28.0.3'
     lintOptions {
         abortOnError false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
@@ -34,7 +38,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.0.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'com.clj.fastble:FastBleLib:2.3.4'
-    implementation 'com.regula.documentreader.mrz:core:+@aar'
+    implementation 'com.regula.documentreader.core:mrz:+@aar'
     implementation('com.regula.documentreader:api:+@aar') {
         transitive = true
     }
