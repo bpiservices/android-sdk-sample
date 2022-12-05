@@ -1,6 +1,7 @@
 package com.gridler.imatchsample;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.content.Context;
@@ -53,6 +54,7 @@ import com.regula.documentreader.api.completions.IDocumentReaderInitCompletion;
 import com.regula.documentreader.api.enums.DocReaderAction;
 import com.regula.documentreader.api.enums.Scenario;
 import com.regula.documentreader.api.errors.DocumentReaderException;
+import com.regula.documentreader.api.params.DocReaderConfig;
 import com.regula.documentreader.api.results.DocumentReaderResults;
 import com.regula.documentreader.api.results.DocumentReaderTextField;
 
@@ -79,7 +81,6 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
 
 import eu.bpiservices.idreadersdk.CertValidator;
@@ -176,8 +177,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         try {
             PackageInfo pInfo = this.getPackageManager().getPackageInfo(getPackageName(), 0);
             String versionNameImatchSdk = com.gridler.imatchsdk.BuildConfig.VERSION_NAME;
-            String versionNameIdReaderSdk = eu.bpiservices.idreadersdk.BuildConfig.VERSION_NAME;
-            //PackageInfo pInfo = this.getPackageManager().getPackageInfo(getPackageName(), 0);
+            String versionNameIdReaderSdk = "2.4.16";
             sampleVersionText.setText(pInfo.versionName);
             versionImatchSdk.setText(versionNameImatchSdk);
             idReaderSdkVersionText.setText(versionNameIdReaderSdk);
@@ -247,9 +247,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 InputStream licInput = getResources().openRawResource(R.raw.regula);
                 final byte[] license = new byte[licInput.available()];
                 licInput.read(license);
-
+                DocReaderConfig config = new DocReaderConfig(license);
                 //Initializing the reader
-                DocumentReader.Instance().initializeReader(MainActivity.this, license, new IDocumentReaderInitCompletion() {
+                DocumentReader.Instance().initializeReader(MainActivity.this, config, new IDocumentReaderInitCompletion() {
                     @Override
                     public void onInitCompleted(boolean success, DocumentReaderException documentReaderException) {
                         DocumentReader.Instance().customization().edit().setShowResultStatusMessages(true).apply();
@@ -300,7 +300,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
      */
     public void scanMrz(View view) {
         // Launch OCR scanner
-        DocumentReader.Instance().showScanner(this, completion);
+        DocumentReader.Instance().showScanner(MainActivity.this, completion);
     }
 
     public void testMtu(View view) {
@@ -312,6 +312,8 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
         readTask.setApduLogging(true);
         readTask.setDataLogging(true);
 
+        //readTask.setCertOverride(false);
+        // readTask.setReadCvca(true);
         readTask.setReadSod(true);
         readTask.setReadDg1(true);
         readTask.setReadDg2(true);
@@ -459,7 +461,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
             if (method == Method.POWERON) {
                 if (scanIBFingerprint) {
                     poweredIBFingerprint = true;
-                    mFpReader.enroll(ImageType.FLAT_TWO_FINGERS);
+                    mFpReader.enroll(ImageType.FLAT_TWO_FINGERS, true);
                 }
             }
 
@@ -947,10 +949,9 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 String bypassPACE = "0";
                 String checkMAC = "1";
                 String includeHeaders = "1";
-                String apduLogging = "0";
 
                 String formattedMrz = Utils.formatMrz(vizMrz);
-                String params = formattedMrz + "," + bypassPACE + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                String params = formattedMrz + "," + bypassPACE + "," + checkMAC + "," + includeHeaders;
                 String accessResult = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.MRTD_INIT, params);
                 if (!accessResult.equals("1")) {
                     displayLog("Access control failed.");
@@ -961,7 +962,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 publishProgress();
 
                 // Read DG2 (passport photo)
-                params = "DG2" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                params = "DG2" + "," + checkMAC + "," + includeHeaders;
                 String dg2Result = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params);
                 Log.d(TAG, "DG2 Result: " + dg2Result);
                 final byte[] dg2Bytes = Base64.decode(dg2Result, Base64.NO_WRAP);
@@ -993,7 +994,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
 
                 try {
                     // Read SOD (document security object)
-                    params = "SOD" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                    params = "SOD" + "," + checkMAC + "," + includeHeaders;
                     final byte[] certBytes = Base64.decode(ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params), Base64.NO_WRAP);
                     displayLog("Read SecurityData.");
                     publishProgress();
@@ -1016,7 +1017,7 @@ public class MainActivity extends ListActivity implements ImatchManagerListener,
                 }
 
                 // Read DG1
-                params = "DG1" + "," + checkMAC + "," + includeHeaders + "," + apduLogging;
+                params = "DG1" + "," + checkMAC + "," + includeHeaders;
                 String dg1Mrz = ImatchDevice.getInstance().SendWithResponse(Device.NfcReader, Method.READ, params);
                 publishProgress();
 

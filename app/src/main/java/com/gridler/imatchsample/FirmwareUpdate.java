@@ -52,12 +52,13 @@ public class FirmwareUpdate implements FirmwareUpdateResponse {
     }
 
     private void updateFirmware() {
-        FirmwareUpdateTask firmwareUpdateTask = new FirmwareUpdateTask(this.context, this);
+        FirmwareUpdateTask firmwareUpdateTask = new FirmwareUpdateTask(this.context, this, false);
         firmwareUpdateTask.execute();
     }
 
     @Override
-    public void updateProgress(int progress) {
+    public void updateProgress(int progress, String file) {
+        //TODO: add file
         progressDialog.setProgress(progress);
     }
 
